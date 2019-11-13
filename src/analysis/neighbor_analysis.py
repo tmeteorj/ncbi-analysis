@@ -110,6 +110,7 @@ class NeighborAnalysis:
         return source
 
     def source_gene_distribution_analysis(self):
+        self.logger.info('Start source_gene_distribution_analysis')
         datas = []
         buff = []
         for line in open(self.neighbor_result_path, 'r'):
@@ -137,6 +138,8 @@ class NeighborAnalysis:
             with open(file_path, 'w') as fw:
                 for k, v in counter.most_common():
                     fw.write('%s\t%d\t%.4f%%\n' % (k, v, v * 100.0 / total))
+
+        self.logger.info('End source_gene_distribution_analysis')
 
     def run(self):
         open(self.neighbor_result_path, 'w').close()
@@ -169,9 +172,9 @@ class NeighborAnalysis:
                 if not near_big or near_big.cds[0] > gene_segment.cds[0]:
                     near_big = gene_segment
             if gene_segment.cds[0] <= left <= gene_segment.cds[1]:
-                res_set.add(DataDownloadTool.gene_segment_to_str(gene_segment))
+                res_set.add(str(gene_segment))
             if gene_segment.cds[0] <= right <= gene_segment.cds[1]:
-                res_set.add(DataDownloadTool.gene_segment_to_str(gene_segment))
+                res_set.add(str(gene_segment))
         if near_small:
             res_set.add(near_small)
         if near_big:

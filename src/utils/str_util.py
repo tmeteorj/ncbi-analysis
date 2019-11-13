@@ -27,6 +27,12 @@ class StrConverter:
         output_name = re.sub(r'\s+', '_', input_name)
         output_name = re.sub(r'[^a-zA-Z0-9_\.]', '', output_name)
         output_name = re.sub(r'\.(txt|.tsv|.csv)', '', output_name)
-        if output_name.endswith('result'):
-            return output_name[:-6]
+        flag = True
+        end_str = ['result', '_', 'all']
+        while len(output_name) > 0 and flag:
+            flag=False
+            for end in end_str:
+                if output_name.endswith(end):
+                    output_name = output_name[:-len(end)]
+                    flag=True
         return output_name
