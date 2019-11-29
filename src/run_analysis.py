@@ -9,8 +9,8 @@ data_directory = os.path.join(root_directory, 'data', 'rna_analysis')
 output_directory = os.path.join(root_directory, 'data', 'rna_analysis_result')
 download_directory = os.path.join(data_directory, 'rna_download_data')
 
-fna_name = 'T2_bacteria.fna'
-rna_tag = 'T2'
+fna_name = 'T2_sun_bacteria.fna'
+rna_tag = 'T2_sun'
 extract_gene_file_name = 'NC_000913.3.txt'
 extract_gene_sequence = 'rna_sequence.txt'
 do_cluster_match = True
@@ -29,6 +29,7 @@ def run_neighbor_analysis():
     input_path = os.path.join(output_directory, file_name)
     neighbor_analysis = NeighborAnalysis(input_path, download_directory, output_directory)
     neighbor_analysis.run()
+    # neighbor_analysis.source_gene_distribution_analysis()
 
 
 def run_gene_extract():
