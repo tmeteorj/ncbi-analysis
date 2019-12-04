@@ -70,12 +70,19 @@ class EcocycHTMLParser(HTMLParser):
                     self.last_td_data = data
                     if data in self.extract_attr:
                         self.fill_depth = self.depth
-
+            if data.find('typeObjectPage') > 0:
+                self.ecocyc_id = self.extract_id_from_script(data)
             logger.debug("Data     :%s" % data)
 
     @staticmethod
     def extract_gene_name(data):
         return re.sub(r'<\w+>', '', data)
+
+    @staticmethod
+    def extract_id_from_script(data: str):
+        start = data.index('gene:\'') + 6
+        end = data.index('\'', start)
+        return data[start:end]
 
     @staticmethod
     def extract_id_from_data(data):
@@ -84,5 +91,41 @@ class EcocycHTMLParser(HTMLParser):
             if kv.find('=') > 0:
                 k, v = kv.split('=', 1)
                 if k == 'id':
+                    return v
+        return None
+
+
+class UrlHTMLParser(HTMLParser):
+    def __init__(self):
+        super(UrlHTMLParser, self).__init__()
+        self.ecocycs = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.strip()
+        logger.debug("Start tag: %s" % tag)
+        if tag == 'a':
+            href = None
+            for attr in attrs:
+                if attr[0] == 'href':
+                    href = attr[1]
+            if href is not None:
+                href = href.replace('&amp;', '&')
+                self.ecocycs.append([href + '#tab=TU', self.extract_name_from_data(href), ''])
+
+    def handle_endtag(self, tag):
+        logger.debug("End tag  :%s" % tag)
+
+    def handle_data(self, data):
+        data = data.strip()
+        if data != '':
+            self.ecocycs[-1][-1] += data
+
+    @staticmethod
+    def extract_name_from_data(data):
+        items = re.split(r'\'|\?|&|\"', data)
+        for kv in items:
+            if kv.find('=') > 0:
+                k, v = kv.split('=', 1)
+                if k in ['id', 'object']:
                     return v
         return None

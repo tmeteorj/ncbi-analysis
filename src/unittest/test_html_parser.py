@@ -3,7 +3,7 @@ import os
 import unittest
 from urllib import request
 
-from utils.html_parser_util import EcocycHTMLParser
+from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
 
 
 class TestHTMLParser(unittest.TestCase):
@@ -51,3 +51,14 @@ class TestHTMLParser(unittest.TestCase):
             attr = link[6]
             if attr.find('fdhFp') > 0:
                 print(attr)
+
+    def test_urls_extract(self):
+        input_path = os.path.join(self.data_directory, 'transcription_ul.txt')
+        with open(input_path, 'r', encoding='utf8') as fr:
+            body = ''.join(fr.readlines())
+        parser = UrlHTMLParser()
+        parser.feed(body)
+        for url, mock_name, title in parser.ecocycs:
+            if mock_name is None:
+                print(url)
+        return parser.ecocycs

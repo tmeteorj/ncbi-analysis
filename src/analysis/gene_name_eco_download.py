@@ -5,15 +5,16 @@ import traceback
 from urllib import request
 
 from utils.factories.logger_factory import LoggerFactory
-from utils.html_parser_util import EcocycHTMLParser
+from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
 from utils.str_util import StrConverter
 
 
 class EcocycAnalysis:
-    def __init__(self, input_path, download_directory, output_directory):
+    def __init__(self, input_path, download_directory, output_directory, from_gene_names=True):
         self.download_directory = download_directory
         self.output_directory = output_directory
         self.input_path = input_path
+        self.from_gene_names = from_gene_names
 
         file_name = os.path.basename(input_path)
         file_prefix = StrConverter.extract_file_name(file_name)
@@ -22,46 +23,84 @@ class EcocycAnalysis:
         self.logger = LoggerFactory()
 
     def run(self):
-        gene_names = list(filter(lambda arg: arg.strip() != '', open(self.input_path, 'r').readlines()))
-        total_cnt = len(gene_names)
         solve_cnt = 0
         succ_cnt = 0
         fail_cnt = 0
         fail_json_cnt = 0
-        self.logger.info_with_expire_time(
-            'Ecocyc analysis %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
-            solve_cnt, total_cnt)
         fw_error = open(self.ecocyc_error_path, 'w', encoding='utf8')
         fw_result = open(self.ecocyc_result_path, 'w', encoding='utf8')
-        for gene_name in gene_names:
-            try:
-                gene_name = gene_name.strip()
-                flag_id = self.write_body(gene_name=gene_name)
-                ecocyc_id = self.get_ecocyc_id(gene_name)
-                flag_xml = self.write_body(ecocyc_id=ecocyc_id, get_summary=True)
-                flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
-                xml_data = self.analysis_xml(ecocyc_id)
-                json_data = self.analysis_json(gene_name, ecocyc_id) if flag_json else ''
-                if not flag_json:
-                    fail_json_cnt += 1
-                fw_result.write('%s\t%s\t%s\t%s\n' % (gene_name, ecocyc_id, xml_data, json_data))
-                fw_result.flush()
-                succ_cnt += 1
-            except:
-                traceback.print_exc()
-                fw_error.write(gene_name + '\t' + str(ecocyc_id) + '\n')
-                fw_error.flush()
-                fail_cnt += 1
-            solve_cnt += 1
+        if self.from_gene_names:
+            gene_names = list(filter(lambda arg: arg.strip() != '', open(self.input_path, 'r').readlines()))
+            total_cnt = len(gene_names)
             self.logger.info_with_expire_time(
-                'Ecocyc analysis %d/%d=%.2f%%, success_cnt=%d, fail_cnt=%d, json_download_fail=%d' % (
-                    solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt,
-                    succ_cnt, fail_cnt, fail_json_cnt),
+                'Ecocyc analysis %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
                 solve_cnt, total_cnt)
+            for gene_name in gene_names:
+                try:
+                    gene_name = gene_name.strip()
+                    flag_id = self.write_body(gene_name=gene_name)
+                    ecocyc_id = self.get_ecocyc_id(gene_name)
+                    flag_xml = self.write_body(ecocyc_id=ecocyc_id, get_summary=True)
+                    flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
+                    xml_data, _ = self.analysis_xml(ecocyc_id)
+                    json_data = self.analysis_json(ecocyc_id) if flag_json else ''
+                    if not flag_json:
+                        fail_json_cnt += 1
+                    fw_result.write('%s\t%s\t%s\t%s\n' % (gene_name, ecocyc_id, xml_data, json_data))
+                    fw_result.flush()
+                    succ_cnt += 1
+                except:
+                    traceback.print_exc()
+                    fw_error.write(gene_name + '\t' + str(ecocyc_id) + '\n')
+                    fw_error.flush()
+                    fail_cnt += 1
+                solve_cnt += 1
+                self.logger.info_with_expire_time(
+                    'Ecocyc analysis %d/%d=%.2f%%, success_cnt=%d, fail_cnt=%d, json_download_fail=%d' % (
+                        solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt,
+                        succ_cnt, fail_cnt, fail_json_cnt),
+                    solve_cnt, total_cnt)
+        else:
+            items = self.extract_urls_from_file()
+            total_cnt = len(items)
+            for url, mock_name, title in items:
+                try:
+                    flag_xml = self.write_body(url=url, mock_name=mock_name)
+                    xml_data, ecocyc_id = self.analysis_xml(mock_name)
+                    flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
+
+                    json_data = self.analysis_json(ecocyc_id=ecocyc_id) if flag_json else ''
+                    if not flag_json:
+                        fail_json_cnt += 1
+                    fw_result.write('%s\t%s\t%s\t%s\n' % (title, ecocyc_id, xml_data, json_data))
+                    fw_result.flush()
+                    succ_cnt += 1
+                except:
+                    traceback.print_exc()
+                    fw_error.write(url + '\t' + mock_name + '\t' + title + '\n')
+                    fw_error.flush()
+                    fail_cnt += 1
+                solve_cnt += 1
+                self.logger.info_with_expire_time(
+                    'Ecocyc analysis %d/%d=%.2f%%, success_cnt=%d, fail_cnt=%d, json_download_fail=%d' % (
+                        solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt,
+                        succ_cnt, fail_cnt, fail_json_cnt),
+                    solve_cnt, total_cnt)
+
         fw_error.close()
 
-    def write_body(self, ecocyc_id=None, gene_name=None, get_summary=True):
-        if gene_name is not None:
+    def extract_urls_from_file(self):
+        with open(self.input_path, 'r', encoding='utf8') as fr:
+            body = ''.join(fr.readlines())
+        parser = UrlHTMLParser()
+        parser.feed(body)
+        return parser.ecocycs
+
+    def write_body(self, url=None, mock_name=None, ecocyc_id=None, gene_name=None, get_summary=True):
+        if url is not None:
+            urls = [url]
+            file_path = os.path.join(self.download_directory, mock_name + '.html')
+        elif gene_name is not None:
             urls = ['http://ecocyc.org/ECOLI/substring-search?type=GENE&object=%s&geneSearch=Gene+Search' % gene_name]
             file_path = os.path.join(self.download_directory, gene_name + '.html')
         elif ecocyc_id is not None:
@@ -108,9 +147,9 @@ class EcocycAnalysis:
         evidence = parser.extract_attr['Reaction']
         if location is None: location = ''
         if evidence is None: evidence = ''
-        return '%s\t%s' % (re.sub(r'\s+', ' ', location), re.sub(r'\s+', ' ', evidence))
+        return '%s\t%s' % (re.sub(r'\s+', ' ', location), re.sub(r'\s+', ' ', evidence)), parser.ecocyc_id
 
-    def analysis_json(self, gene_name, ecocyc_id):
+    def analysis_json(self, ecocyc_id):
         json_path = os.path.join(self.download_directory, ecocyc_id + '.json')
         with open(json_path, 'r') as fr:
             body = ''.join(fr.readlines())
