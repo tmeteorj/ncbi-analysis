@@ -150,9 +150,10 @@ class NeighborAnalysis:
             unsolved_datas = list(unsolved_datas)
         for iteration_time in range(1, MAX_ITERATION_TIME + 1):
             unsolved_datas = self.find_neighbor_batch(unsolved_datas, iteration_time)
-            if len(unsolved_datas) == 0:
-                self.source_gene_distribution_analysis()
+            if len(unsolved_datas) ==0:
                 break
+        print("Failed data:"+len(unsolved_datas)+","+str(unsolved_datas))
+        self.source_gene_distribution_analysis()
 
     @staticmethod
     def analysis_download_file(download_file_path, inter):
