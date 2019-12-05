@@ -20,7 +20,7 @@ extract_gene_file_name = 'NC_000913.3.txt'
 extract_gene_sequence = 'rna_sequence.txt'
 do_gene_extract = False
 
-ecocyc_gene_file = 'transcription_ul.txt'
+ecocyc_gene_files = ['transcription_ul.txt', 'tRNA_ul.txt']
 from_gene_names = False
 do_ecocyc_analysis = True
 
@@ -48,9 +48,10 @@ def run_gene_extract():
 
 
 def run_ecocyc_analysis():
-    input_path = os.path.join(data_directory, ecocyc_gene_file)
-    ecocyc_analysis = EcocycAnalysis(input_path, ecocyc_download_directory, output_directory, from_gene_names)
-    ecocyc_analysis.run()
+    for ecocyc_gene_file in ecocyc_gene_files:
+        input_path = os.path.join(data_directory, ecocyc_gene_file)
+        ecocyc_analysis = EcocycAnalysis(input_path, ecocyc_download_directory, output_directory, from_gene_names)
+        ecocyc_analysis.run()
 
 
 if __name__ == '__main__':
