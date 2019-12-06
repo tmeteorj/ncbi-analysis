@@ -20,7 +20,7 @@ class EcocycHTMLParser(HTMLParser):
         self.depth = 0
         self.fill_depth = -inf
 
-        self.extract_attr = {'Location': None, 'Reaction': None}
+        self.extract_attr = {'Location': None, 'Reaction': None, 'gene': None, 'enzyme': None, 'RNA': None}
         self.ecocyc_id = None
 
     def handle_starttag(self, tag, attrs):
@@ -40,11 +40,12 @@ class EcocycHTMLParser(HTMLParser):
         if tag == 'td':
             self.depth -= 1
             if self.depth < self.fill_depth:
-                if self.extract_attr[self.last_td_data] is None:
-                    self.extract_attr[self.last_td_data] = ''
-                else:
+                if self.extract_attr[self.last_td_data] != '':
                     self.fill_depth = -inf
                     self.last_td_data = None
+        elif tag == 'a':
+            if self.last_td_data == 'Reaction' and self.extract_attr['Reaction']:
+                self.extract_attr['Reaction'] += '__#####__'
 
         logger.debug("End tag  :%s" % tag)
 
@@ -70,6 +71,7 @@ class EcocycHTMLParser(HTMLParser):
                     self.last_td_data = data
                     if data in self.extract_attr:
                         self.fill_depth = self.depth
+                        self.extract_attr[data] = ''
             if data.find('typeObjectPage') > 0:
                 self.ecocyc_id = self.extract_id_from_script(data)
             logger.debug("Data     :%s" % data)
@@ -80,6 +82,8 @@ class EcocycHTMLParser(HTMLParser):
 
     @staticmethod
     def extract_id_from_script(data: str):
+        if data.find('gene:\'') < 0:
+            return None
         start = data.index('gene:\'') + 6
         end = data.index('\'', start)
         return data[start:end]

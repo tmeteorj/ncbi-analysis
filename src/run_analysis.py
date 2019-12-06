@@ -20,7 +20,7 @@ extract_gene_file_name = 'NC_000913.3.txt'
 extract_gene_sequence = 'rna_sequence.txt'
 do_gene_extract = False
 
-ecocyc_gene_files = ['transcription_ul.txt', 'tRNA_ul.txt']
+ecocyc_gene_files = ['binding_ul.txt']
 from_gene_names = False
 do_ecocyc_analysis = True
 
