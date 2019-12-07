@@ -20,8 +20,8 @@ extract_gene_file_name = 'NC_000913.3.txt'
 extract_gene_sequence = 'rna_sequence.txt'
 do_gene_extract = False
 
-ecocyc_gene_files = ['binding_ul.txt']
-from_gene_names = False
+ecocyc_gene_files = ['gene_cluster.txt']
+from_gene_names = True
 do_ecocyc_analysis = True
 
 

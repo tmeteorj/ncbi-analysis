@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import traceback
 from urllib import request
 
@@ -32,15 +31,18 @@ class EcocycAnalysis:
         buff = []
         max_col = 0
         if self.from_gene_names:
-            gene_names = list(filter(lambda arg: arg.strip() != '', open(self.input_path, 'r').readlines()))
-            total_cnt = len(gene_names)
+            gene_items = list(filter(lambda arg: arg.strip() != '', open(self.input_path, 'r').readlines()))
+            total_cnt = len(gene_items)
             self.logger.info_with_expire_time(
                 'Ecocyc analysis %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
                 solve_cnt, total_cnt)
-            for gene_name in gene_names:
+            for line in gene_items:
                 try:
-                    gene_name = gene_name.strip()
+                    info = line.strip().split('\t')
+                    gene_name = info[0].strip()
                     result = {'gene': gene_name}
+                    if len(info) > 1:
+                        result['cluster'] = info[1]
                     self.write_body(gene_name=gene_name)
                     ecocyc_id = self.get_ecocyc_id(gene_name)
                     result['ecocyc_id'] = ecocyc_id
@@ -70,6 +72,9 @@ class EcocycAnalysis:
         else:
             items = self.extract_urls_from_file()
             total_cnt = len(items)
+            self.logger.info_with_expire_time(
+                'Ecocyc analysis %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
+                solve_cnt, total_cnt)
             for url, mock_name, title in items:
                 try:
                     result = {}
@@ -106,19 +111,29 @@ class EcocycAnalysis:
         fw_error.close()
         fw_result.close()
         with open(self.ecocyc_result_path, 'w', encoding='utf8') as fw:
-            fw.write('gene\tid\trna\tenzyme\tlocation\treaction')
+            fw.write('gene\tcluster\tproduct_type\tproduct\tlocation\treaction')
             max_col -= 6
+            max_col //= 2
             for idx in range(max_col):
-                fw.write('\tstart#%d' % (idx + 1))
+                fw.write('\tpromoter#%d\tstart#%d' % (idx + 1, idx + 1))
             fw.write('\n')
             for line in buff:
                 if line.strip() == '': continue
                 fw.write(line)
 
-    def format_result_json(self, result):
-        keys = ['gene', 'ecocyc_id', 'RNA', 'enzyme', 'Location', 'Reaction']
-        info = []
-        for key in keys:
+    @staticmethod
+    def format_result_json(result):
+        keys = ['gene', 'cluster']
+        info = [result.get(key, '') for key in keys]
+        product_type = ''
+        product = ''
+        for key in ['rna', 'protein', 'polypeptide', 'enzyme']:
+            val = result.get(key, '')
+            if val is None or val == '': continue
+            product_type = key
+            product = val
+        info.extend([product_type, product])
+        for key in ['location', 'reaction']:
             val = result.get(key, '')
             if val is None: val = ''
             info.append(val)
@@ -196,9 +211,18 @@ class EcocycAnalysis:
                 data.append(self.extract_attr(attr))
         result['links'] = data
 
-    def extract_attr(self, attr):
+    @staticmethod
+    def extract_attr(attr):
         attr = attr.replace('<b>', '').replace('</b>', '')
-        return re.sub(r'\s+', ' ', re.sub(r'\s+<BR>\s+', ';', attr))
+        result = {}
+        for line in attr.split('<BR>'):
+            try:
+                k, v = map(lambda arg: arg.strip(), line.split(':', 1))
+                if k.strip() in ['Promoter', 'Tr.Start site']:
+                    result[k] = v
+            except:
+                print('Parse promoter error for ' + line)
+        return result['Promoter'] + '\t' + result['Tr.Start site']
 
     def get_ecocyc_id(self, gene_name):
         xml_path = os.path.join(self.download_directory, gene_name + '.html')

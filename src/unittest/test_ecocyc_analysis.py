@@ -3,10 +3,11 @@ import os
 import unittest
 from urllib import request
 
+from analysis.gene_name_eco_download import EcocycAnalysis
 from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
 
 
-class TestHTMLParser(unittest.TestCase):
+class TestEcocycAnalysis(unittest.TestCase):
     def setUp(self):
         self.root_directory = os.sep.join(os.getcwd().split(os.sep)[:-2])
         self.data_directory = os.path.join(self.root_directory, 'data', 'rna_analysis')
@@ -31,10 +32,12 @@ class TestHTMLParser(unittest.TestCase):
         self.assertEqual('G7213', parser.ecocyc_id)
 
     def test_attr_extraction(self):
-        body = self.get_body('EG11227')
+        body = self.get_body('EG10875')
         parser = EcocycHTMLParser()
         parser.feed(body)
-        self.assertIsNotNone(parser.extract_attr['Location'])
+        self.assertEqual('cytosol, ribosome', parser.extract_attr['location'])
+        self.assertEqual('rplN', parser.extract_attr['gene'])
+        self.assertEqual('50S ribosomal subunit protein L14', parser.extract_attr['polypeptide'])
         # self.assertIsNotNone(parser.extract_attr['Evidence'])
 
     def test_json_download(self):
@@ -62,3 +65,8 @@ class TestHTMLParser(unittest.TestCase):
             if mock_name is None:
                 print(url)
         return parser.ecocycs
+
+    def test_promoter_parser(self):
+        promoter = '<b>Promoter:</b> ampCp (Experim. ev.)  <BR><b>Tr.Activators:</b> (BolA) <BR><b>Tr.Inhibitors:</b> (BolA) <BR><b>Tr.Start site:</b> 4,379,003'
+        result = EcocycAnalysis.extract_attr(promoter)
+        self.assertEqual('ampCp:4,379,003')
