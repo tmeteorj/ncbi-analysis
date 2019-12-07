@@ -20,9 +20,9 @@ extract_gene_file_name = 'NC_000913.3.txt'
 extract_gene_sequence = 'rna_sequence.txt'
 do_gene_extract = False
 
-ecocyc_gene_files = ['gene_cluster.txt']
+ecocyc_gene_files = ['rpkm4_ratio2.txt']
 from_gene_names = True
-do_ecocyc_analysis = True
+do_ecocyc_analysis = False
 
 
 def run_cluster_match():

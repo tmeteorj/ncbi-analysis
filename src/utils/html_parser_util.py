@@ -21,7 +21,7 @@ class EcocycHTMLParser(HTMLParser):
         self.fill_depth = -inf
 
         self.extract_attr = {'location': None, 'reaction': None, 'gene': None, 'enzyme': None, 'rna': None,
-                             'protein': None, 'polypeptide': None}
+                             'protein': None, 'polypeptide': None, 'function when intact': None, 'transporter': None}
         self.ecocyc_id = None
 
     def handle_starttag(self, tag, attrs):
