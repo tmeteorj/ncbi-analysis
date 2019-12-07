@@ -17,12 +17,13 @@ do_cluster_match = False
 do_neighbor_analysis = False
 
 extract_gene_file_name = 'NC_000913.3.txt'
-extract_gene_sequence = 'rna_sequence.txt'
-do_gene_extract = False
+extract_gene_sequence = 'gene_promoter_list.txt'
+gene_extract_based = 'range'
+do_gene_extract = True
 
-ecocyc_gene_files = ['binding_ul.txt']
-from_gene_names = False
-do_ecocyc_analysis = True
+ecocyc_gene_files = ['rpkm4_ratio2.txt']
+from_gene_names = True
+do_ecocyc_analysis = False
 
 
 def run_cluster_match():
@@ -41,9 +42,8 @@ def run_neighbor_analysis():
 
 def run_gene_extract():
     data_path = os.path.join(rna_download_directory, extract_gene_file_name)
-    rna_path = os.path.join(data_directory, 'rna_sequence.txt')
-    output_path = os.path.join(output_directory, 'rna_sequence_result.tsv')
-    gene_extract = GeneExtract(data_path, rna_path, output_path)
+    rna_path = os.path.join(data_directory, extract_gene_sequence)
+    gene_extract = GeneExtract(data_path, rna_path, output_directory, gene_extract_based)
     gene_extract.run()
 
 

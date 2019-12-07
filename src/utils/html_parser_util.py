@@ -20,7 +20,8 @@ class EcocycHTMLParser(HTMLParser):
         self.depth = 0
         self.fill_depth = -inf
 
-        self.extract_attr = {'Location': None, 'Reaction': None, 'gene': None, 'enzyme': None, 'RNA': None}
+        self.extract_attr = {'location': None, 'reaction': None, 'gene': None, 'enzyme': None, 'rna': None,
+                             'protein': None, 'polypeptide': None, 'function when intact': None, 'transporter': None}
         self.ecocyc_id = None
 
     def handle_starttag(self, tag, attrs):
@@ -44,8 +45,8 @@ class EcocycHTMLParser(HTMLParser):
                     self.fill_depth = -inf
                     self.last_td_data = None
         elif tag == 'a':
-            if self.last_td_data == 'Reaction' and self.extract_attr['Reaction']:
-                self.extract_attr['Reaction'] += '__#####__'
+            if self.last_td_data == 'reaction' and self.extract_attr['reaction']:
+                self.extract_attr['reaction'] += '__#####__'
 
         logger.debug("End tag  :%s" % tag)
 
@@ -68,10 +69,10 @@ class EcocycHTMLParser(HTMLParser):
                 self.extract_attr[self.last_td_data] += data
             if self.lasttag == 'td':
                 if self.fill_depth == -inf:
-                    self.last_td_data = data
-                    if data in self.extract_attr:
+                    self.last_td_data = data.lower()
+                    if self.last_td_data in self.extract_attr:
                         self.fill_depth = self.depth
-                        self.extract_attr[data] = ''
+                        self.extract_attr[self.last_td_data] = ''
             if data.find('typeObjectPage') > 0:
                 self.ecocyc_id = self.extract_id_from_script(data)
             logger.debug("Data     :%s" % data)

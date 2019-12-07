@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import traceback
 from urllib import request
 
@@ -32,23 +31,26 @@ class EcocycAnalysis:
         buff = []
         max_col = 0
         if self.from_gene_names:
-            gene_names = list(filter(lambda arg: arg.strip() != '', open(self.input_path, 'r').readlines()))
-            total_cnt = len(gene_names)
+            gene_items = list(filter(lambda arg: arg.strip() != '', open(self.input_path, 'r').readlines()))
+            total_cnt = len(gene_items)
             self.logger.info_with_expire_time(
                 'Ecocyc analysis %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
                 solve_cnt, total_cnt)
-            for gene_name in gene_names:
+            for line in gene_items:
                 try:
-                    gene_name = gene_name.strip()
+                    info = line.strip().split('\t')
+                    gene_name = info[0].strip()
                     result = {'gene': gene_name}
+                    if len(info) > 1:
+                        result['cluster'] = info[1]
                     self.write_body(gene_name=gene_name)
-                    ecocyc_id = self.get_ecocyc_id(gene_name)
+                    ecocyc_id = self.get_ecocyc_id(prefix='gene_', gene_name=gene_name)
                     result['ecocyc_id'] = ecocyc_id
                     self.write_body(ecocyc_id=ecocyc_id, get_summary=True)
                     flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
-                    _ = self.analysis_xml(ecocyc_id, result)
+                    _ = self.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
                     if flag_json:
-                        self.analysis_json(ecocyc_id, result)
+                        self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result)
                     if not flag_json:
                         fail_json_cnt += 1
                     buff.append(self.format_result_json(result))
@@ -70,17 +72,20 @@ class EcocycAnalysis:
         else:
             items = self.extract_urls_from_file()
             total_cnt = len(items)
+            self.logger.info_with_expire_time(
+                'Ecocyc analysis %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
+                solve_cnt, total_cnt)
             for url, mock_name, title in items:
                 try:
                     result = {}
                     self.write_body(url=url, mock_name=mock_name)
-                    ecocyc_id = self.analysis_xml(mock_name, result)
+                    ecocyc_id = self.analysis_xml(prefix='url_', gene_name=mock_name, result=result)
                     flag_json = False
                     if ecocyc_id is not None:
                         result['ecocyc_id'] = ecocyc_id
                         flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
                         if flag_json:
-                            self.analysis_json(ecocyc_id=ecocyc_id, result=result)
+                            self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result)
                     if not flag_json:
                         fail_json_cnt += 1
                     temp = self.format_result_json(result)
@@ -106,19 +111,29 @@ class EcocycAnalysis:
         fw_error.close()
         fw_result.close()
         with open(self.ecocyc_result_path, 'w', encoding='utf8') as fw:
-            fw.write('gene\tid\trna\tenzyme\tlocation\treaction')
+            fw.write('gene\tcluster\tproduct_type\tproduct\tlocation\treaction')
             max_col -= 6
+            max_col //= 2
             for idx in range(max_col):
-                fw.write('\tstart#%d' % (idx + 1))
+                fw.write('\tpromoter#%d\tstart#%d' % (idx + 1, idx + 1))
             fw.write('\n')
             for line in buff:
                 if line.strip() == '': continue
                 fw.write(line)
 
-    def format_result_json(self, result):
-        keys = ['gene', 'ecocyc_id', 'RNA', 'enzyme', 'Location', 'Reaction']
-        info = []
-        for key in keys:
+    @staticmethod
+    def format_result_json(result):
+        keys = ['gene', 'cluster']
+        info = [result.get(key, '') for key in keys]
+        product_type = ''
+        product = ''
+        for key in ['rna', 'protein', 'polypeptide', 'enzyme', 'function when intact', 'transporter']:
+            val = result.get(key, '')
+            if val is None or val == '': continue
+            product_type = key
+            product = val
+        info.extend([product_type, product])
+        for key in ['location', 'reaction']:
             val = result.get(key, '')
             if val is None: val = ''
             info.append(val)
@@ -135,14 +150,20 @@ class EcocycAnalysis:
     def write_body(self, url=None, mock_name=None, ecocyc_id=None, gene_name=None, get_summary=True):
         if url is not None:
             urls = [url]
-            file_path = os.path.join(self.download_directory, mock_name + '.html')
+            origin_path = os.path.join(self.download_directory, mock_name + '.html')
+            file_path = os.path.join(self.download_directory, 'url_' + mock_name + '.html')
+            self.transform_file(origin_path, file_path)
         elif gene_name is not None:
             urls = ['http://ecocyc.org/ECOLI/substring-search?type=GENE&object=%s&geneSearch=Gene+Search' % gene_name]
-            file_path = os.path.join(self.download_directory, gene_name + '.html')
+            origin_path = os.path.join(self.download_directory, gene_name + '.html')
+            file_path = os.path.join(self.download_directory, 'gene_' + gene_name + '.html')
+            self.transform_file(origin_path, file_path)
         elif ecocyc_id is not None:
             if get_summary:
                 urls = ['https://ecocyc.org/gene?orgid=ECOLI&id=%s#tab=TU' % ecocyc_id]
-                file_path = os.path.join(self.download_directory, ecocyc_id + '.html')
+                origin_path = os.path.join(self.download_directory, ecocyc_id + '.html')
+                file_path = os.path.join(self.download_directory, 'tu_' + ecocyc_id + '.html')
+                self.transform_file(origin_path, file_path)
             else:
                 urls = [
                     'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-PLOC_%s.wg' % ecocyc_id,
@@ -150,7 +171,9 @@ class EcocycAnalysis:
                     'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,
                     'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-PLOC_%s.wg' % ecocyc_id
                 ]
-                file_path = os.path.join(self.download_directory, ecocyc_id + '.json')
+                origin_path = os.path.join(self.download_directory, ecocyc_id + '.json')
+                file_path = os.path.join(self.download_directory, 'promoter_' + ecocyc_id + '.json')
+                self.transform_file(origin_path, file_path)
         else:
             raise ValueError('Parameter not correct')
         if os.path.exists(file_path):
@@ -173,8 +196,8 @@ class EcocycAnalysis:
                 break
         return flag
 
-    def analysis_xml(self, ecocyc_id, result):
-        xml_path = os.path.join(self.download_directory, ecocyc_id + '.html')
+    def analysis_xml(self, prefix, ecocyc_id, result):
+        xml_path = os.path.join(self.download_directory, prefix + ecocyc_id + '.html')
         with open(xml_path, 'r', encoding='utf8') as fr:
             body = ''.join(fr.readlines())
         parser = EcocycHTMLParser()
@@ -184,8 +207,8 @@ class EcocycAnalysis:
                 result[k] = v.strip('__#####__')
         return parser.ecocyc_id
 
-    def analysis_json(self, ecocyc_id, result):
-        json_path = os.path.join(self.download_directory, ecocyc_id + '.json')
+    def analysis_json(self, prefix, ecocyc_id, result):
+        json_path = os.path.join(self.download_directory, prefix + ecocyc_id + '.json')
         with open(json_path, 'r') as fr:
             body = ''.join(fr.readlines())
         body = json.loads(body)
@@ -196,12 +219,21 @@ class EcocycAnalysis:
                 data.append(self.extract_attr(attr))
         result['links'] = data
 
-    def extract_attr(self, attr):
+    @staticmethod
+    def extract_attr(attr):
         attr = attr.replace('<b>', '').replace('</b>', '')
-        return re.sub(r'\s+', ' ', re.sub(r'\s+<BR>\s+', ';', attr))
+        result = {}
+        for line in attr.split('<BR>'):
+            try:
+                k, v = map(lambda arg: arg.strip(), line.split(':', 1))
+                if k.strip() in ['Promoter', 'Tr.Start site']:
+                    result[k] = v
+            except:
+                print('Parse promoter error for ' + line)
+        return result['Promoter'] + '\t' + result['Tr.Start site']
 
-    def get_ecocyc_id(self, gene_name):
-        xml_path = os.path.join(self.download_directory, gene_name + '.html')
+    def get_ecocyc_id(self, prefix, gene_name):
+        xml_path = os.path.join(self.download_directory, prefix + gene_name + '.html')
         with open(xml_path, 'r') as fr:
             body = ''.join(fr.readlines())
 
@@ -210,3 +242,8 @@ class EcocycAnalysis:
         if parser.ecocyc_id is None:
             raise RuntimeError('Ecocyc is is None, parse error for %s' % gene_name)
         return parser.ecocyc_id
+
+    @staticmethod
+    def transform_file(original_path, new_path):
+        if not os.path.exists(new_path) and os.path.exists(original_path):
+            os.rename(original_path, new_path)
