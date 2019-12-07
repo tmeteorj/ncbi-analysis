@@ -29,6 +29,8 @@ class EcocycAnalysis:
         fail_json_cnt = 0
         fw_error = open(self.ecocyc_error_path, 'w', encoding='utf8')
         fw_result = open(self.ecocyc_result_path, 'w', encoding='utf8')
+        buff = []
+        max_col = 0
         if self.from_gene_names:
             gene_names = list(filter(lambda arg: arg.strip() != '', open(self.input_path, 'r').readlines()))
             total_cnt = len(gene_names)
@@ -38,15 +40,20 @@ class EcocycAnalysis:
             for gene_name in gene_names:
                 try:
                     gene_name = gene_name.strip()
-                    flag_id = self.write_body(gene_name=gene_name)
+                    result = {'gene': gene_name}
+                    self.write_body(gene_name=gene_name)
                     ecocyc_id = self.get_ecocyc_id(gene_name)
-                    flag_xml = self.write_body(ecocyc_id=ecocyc_id, get_summary=True)
+                    result['ecocyc_id'] = ecocyc_id
+                    self.write_body(ecocyc_id=ecocyc_id, get_summary=True)
                     flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
-                    xml_data, _ = self.analysis_xml(ecocyc_id)
-                    json_data = self.analysis_json(ecocyc_id) if flag_json else ''
+                    _ = self.analysis_xml(ecocyc_id, result)
+                    if flag_json:
+                        self.analysis_json(ecocyc_id, result)
                     if not flag_json:
                         fail_json_cnt += 1
-                    fw_result.write('%s\t%s\t%s\t%s\n' % (gene_name, ecocyc_id, xml_data, json_data))
+                    buff.append(self.format_result_json(result))
+                    fw_result.write(buff[-1])
+                    max_col = max(max_col, len(buff[-1].split('\t')))
                     fw_result.flush()
                     succ_cnt += 1
                 except:
@@ -65,14 +72,23 @@ class EcocycAnalysis:
             total_cnt = len(items)
             for url, mock_name, title in items:
                 try:
-                    flag_xml = self.write_body(url=url, mock_name=mock_name)
-                    xml_data, ecocyc_id = self.analysis_xml(mock_name)
-                    flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
-
-                    json_data = self.analysis_json(ecocyc_id=ecocyc_id) if flag_json else ''
+                    result = {}
+                    self.write_body(url=url, mock_name=mock_name)
+                    ecocyc_id = self.analysis_xml(mock_name, result)
+                    flag_json = False
+                    if ecocyc_id is not None:
+                        result['ecocyc_id'] = ecocyc_id
+                        flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
+                        if flag_json:
+                            self.analysis_json(ecocyc_id=ecocyc_id, result=result)
                     if not flag_json:
                         fail_json_cnt += 1
-                    fw_result.write('%s\t%s\t%s\t%s\n' % (title, ecocyc_id, xml_data, json_data))
+                    temp = self.format_result_json(result)
+                    if temp.strip() == '':
+                        raise ValueError('No result found')
+                    buff.append(temp)
+                    fw_result.write(buff[-1])
+                    max_col = max(max_col, len(buff[-1].split('\t')))
                     fw_result.flush()
                     succ_cnt += 1
                 except:
@@ -88,6 +104,26 @@ class EcocycAnalysis:
                     solve_cnt, total_cnt)
 
         fw_error.close()
+        fw_result.close()
+        with open(self.ecocyc_result_path, 'w', encoding='utf8') as fw:
+            fw.write('gene\tid\trna\tenzyme\tlocation\treaction')
+            max_col -= 6
+            for idx in range(max_col):
+                fw.write('\tstart#%d' % (idx + 1))
+            fw.write('\n')
+            for line in buff:
+                if line.strip() == '': continue
+                fw.write(line)
+
+    def format_result_json(self, result):
+        keys = ['gene', 'ecocyc_id', 'RNA', 'enzyme', 'Location', 'Reaction']
+        info = []
+        for key in keys:
+            val = result.get(key, '')
+            if val is None: val = ''
+            info.append(val)
+        info.extend(result.get('links', []))
+        return '\t'.join(info) + '\n'
 
     def extract_urls_from_file(self):
         with open(self.input_path, 'r', encoding='utf8') as fr:
@@ -137,19 +173,18 @@ class EcocycAnalysis:
                 break
         return flag
 
-    def analysis_xml(self, ecocyc_id):
+    def analysis_xml(self, ecocyc_id, result):
         xml_path = os.path.join(self.download_directory, ecocyc_id + '.html')
         with open(xml_path, 'r', encoding='utf8') as fr:
             body = ''.join(fr.readlines())
         parser = EcocycHTMLParser()
         parser.feed(''.join(body))
-        location = parser.extract_attr['Location']
-        evidence = parser.extract_attr['Reaction']
-        if location is None: location = ''
-        if evidence is None: evidence = ''
-        return '%s\t%s' % (re.sub(r'\s+', ' ', location), re.sub(r'\s+', ' ', evidence)), parser.ecocyc_id
+        for k, v in parser.extract_attr.items():
+            if v is not None:
+                result[k] = v.strip('__#####__')
+        return parser.ecocyc_id
 
-    def analysis_json(self, ecocyc_id):
+    def analysis_json(self, ecocyc_id, result):
         json_path = os.path.join(self.download_directory, ecocyc_id + '.json')
         with open(json_path, 'r') as fr:
             body = ''.join(fr.readlines())
@@ -159,7 +194,7 @@ class EcocycAnalysis:
             attr = link[-1]
             if attr.find('Tr.Start') > 0:
                 data.append(self.extract_attr(attr))
-        return '\t'.join(data)
+        result['links'] = data
 
     def extract_attr(self, attr):
         attr = attr.replace('<b>', '').replace('</b>', '')
