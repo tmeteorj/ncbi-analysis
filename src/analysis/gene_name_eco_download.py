@@ -4,16 +4,19 @@ import traceback
 from urllib import request
 
 from utils.factories.logger_factory import LoggerFactory
+from utils.gene_promoter_util import GeneTUInfo, get_target_promoter
 from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
 from utils.str_util import StrConverter
 
 
 class EcocycAnalysis:
-    def __init__(self, input_path, download_directory, output_directory, from_gene_names=True):
+    def __init__(self, input_path, download_directory, output_directory, from_gene_names=True,
+                 output_best_promoter=False):
         self.download_directory = download_directory
         self.output_directory = output_directory
         self.input_path = input_path
         self.from_gene_names = from_gene_names
+        self.output_best_promoter = output_best_promoter
 
         file_name = os.path.basename(input_path)
         file_prefix = StrConverter.extract_file_name(file_name)
@@ -50,7 +53,7 @@ class EcocycAnalysis:
                     flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
                     _ = self.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
                     if flag_json:
-                        self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result)
+                        self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result, gene_name=gene_name)
                     if not flag_json:
                         fail_json_cnt += 1
                     buff.append(self.format_result_json(result))
@@ -85,7 +88,8 @@ class EcocycAnalysis:
                         result['ecocyc_id'] = ecocyc_id
                         flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
                         if flag_json:
-                            self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result)
+                            self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
+                                               gene_name=result['gene'])
                     if not flag_json:
                         fail_json_cnt += 1
                     temp = self.format_result_json(result)
@@ -120,25 +124,6 @@ class EcocycAnalysis:
             for line in buff:
                 if line.strip() == '': continue
                 fw.write(line)
-
-    @staticmethod
-    def format_result_json(result):
-        keys = ['gene', 'cluster']
-        info = [result.get(key, '') for key in keys]
-        product_type = ''
-        product = ''
-        for key in ['rna', 'protein', 'polypeptide', 'enzyme', 'function when intact', 'transporter']:
-            val = result.get(key, '')
-            if val is None or val == '': continue
-            product_type = key
-            product = val
-        info.extend([product_type, product])
-        for key in ['location', 'reaction']:
-            val = result.get(key, '')
-            if val is None: val = ''
-            info.append(val)
-        info.extend(result.get('links', []))
-        return '\t'.join(info) + '\n'
 
     def extract_urls_from_file(self):
         with open(self.input_path, 'r', encoding='utf8') as fr:
@@ -207,30 +192,25 @@ class EcocycAnalysis:
                 result[k] = v.strip('__#####__')
         return parser.ecocyc_id
 
-    def analysis_json(self, prefix, ecocyc_id, result):
+    def analysis_json(self, prefix, ecocyc_id, result, gene_name=None):
         json_path = os.path.join(self.download_directory, prefix + ecocyc_id + '.json')
         with open(json_path, 'r') as fr:
             body = ''.join(fr.readlines())
         body = json.loads(body)
         data = []
+        target_gene = None
         for link in body['links']:
-            attr = link[-1]
-            if attr.find('Tr.Start') > 0:
-                data.append(self.extract_attr(attr))
-        result['links'] = data
-
-    @staticmethod
-    def extract_attr(attr):
-        attr = attr.replace('<b>', '').replace('</b>', '')
-        result = {}
-        for line in attr.split('<BR>'):
-            try:
-                k, v = map(lambda arg: arg.strip(), line.split(':', 1))
-                if k.strip() in ['Promoter', 'Tr.Start site']:
-                    result[k] = v
-            except:
-                print('Parse promoter error for ' + line)
-        return result['Promoter'] + '\t' + result['Tr.Start site']
+            gene_tu = GeneTUInfo(link)
+            if self.output_best_promoter and gene_name is not None:
+                if gene_tu.is_gene(gene_name):
+                    target_gene = gene_tu
+            if gene_tu.is_promoter(check_start_site=True):
+                data.append(gene_tu)
+        if self.output_best_promoter and target_gene is not None:
+            target_promoter = get_target_promoter(target_gene, data)
+            if target_promoter is not None:
+                data = [target_gene, target_promoter]
+        result['table_unites'] = data
 
     def get_ecocyc_id(self, prefix, gene_name):
         xml_path = os.path.join(self.download_directory, prefix + gene_name + '.html')
@@ -247,3 +227,29 @@ class EcocycAnalysis:
     def transform_file(original_path, new_path):
         if not os.path.exists(new_path) and os.path.exists(original_path):
             os.rename(original_path, new_path)
+
+    def format_result_json(self, result):
+        keys = ['gene', 'cluster']
+        info = [result.get(key, '') for key in keys]
+        product_type = ''
+        product = ''
+        for key in ['rna', 'protein', 'polypeptide', 'enzyme', 'function when intact', 'transporter']:
+            val = result.get(key, '')
+            if val is None or val == '': continue
+            product_type = key
+            product = val
+        info.extend([product_type, product])
+        for key in ['location']:  # , 'reaction']:
+            val = result.get(key, '')
+            if val is None: val = ''
+            info.append(val)
+        table_unites = result.get('table_unites', [])
+        if self.output_best_promoter and len(table_unites) == 2 and table_unites[0].is_gene(result['gene']):
+            gene, promoter = table_unites
+            info.extend(['Gene Start Position', gene.get_gene_start_position()])
+            info.extend([promoter.get_promoter_name(), promoter.get_promoter_start_site(int_pos=True)])
+        else:
+            for promoter in table_unites:
+                info.extend([promoter.get_promoter_name(), promoter.get_promoter_start_site()])
+        info = map(str, info)
+        return '\t'.join(info) + '\n'
