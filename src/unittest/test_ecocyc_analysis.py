@@ -82,7 +82,7 @@ class TestEcocycAnalysis(unittest.TestCase):
             data.append(gene_tu_info)
         self.assertEqual(39, len(data))
         self.assertEqual(15, gene_tu.idx)
-        promoters = get_all_promoters(data, 'Left', -100000, 1000000000)
+        promoters = get_all_promoters(data)
         self.assertEqual(7, len(promoters))
         same_direction_promoters = filter_same_direction(gene_tu, promoters)
         self.assertEqual(5, len(same_direction_promoters))
@@ -105,9 +105,25 @@ class TestEcocycAnalysis(unittest.TestCase):
             data.append(gene_tu_info)
         self.assertEqual(10, len(data))
         self.assertEqual(1, gene_tu.idx)
-        promoters = get_all_promoters(data, 'Left', -100000, 1000000000)
+        promoters = get_all_promoters(data)
         self.assertEqual(3, len(promoters))
         same_direction_promoters = filter_same_direction(gene_tu, promoters)
         self.assertEqual(3, len(same_direction_promoters))
         promoter = get_target_promoter(gene_tu, data)
         self.assertEqual(0, promoter.idx)
+
+    def test_target_promoter(self):
+        test_cases = [['rplJ', 'EG10871', 0],
+                      ['rplA', 'EG10864', 1]]
+        for gene_name, ecocyc_id, target_idx in test_cases:
+            body = self.get_body(ecocyc_id, 'promoter_', '.json')
+            body = json.loads(body)
+            data = []
+            target_gene = None
+            for link in body['links']:
+                gene_tu_info = GeneTUInfo(link)
+                if gene_tu_info.is_gene(gene_name):
+                    target_gene = gene_tu_info
+                data.append(gene_tu_info)
+            promoter = get_target_promoter(target_gene, data)
+            self.assertEqual(target_idx, promoter.idx)
