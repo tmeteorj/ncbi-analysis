@@ -19,11 +19,12 @@ do_neighbor_analysis = False
 extract_gene_file_name = 'NC_000913.3.txt'
 extract_gene_sequence = 'gene_promoter_list.txt'
 gene_extract_based = 'range'
-do_gene_extract = True
+do_gene_extract = False
 
 ecocyc_gene_files = ['rpkm4_ratio2.txt']
 from_gene_names = True
-do_ecocyc_analysis = False
+output_best_promoter = True
+do_ecocyc_analysis = True
 
 
 def run_cluster_match():
@@ -50,7 +51,8 @@ def run_gene_extract():
 def run_ecocyc_analysis():
     for ecocyc_gene_file in ecocyc_gene_files:
         input_path = os.path.join(data_directory, ecocyc_gene_file)
-        ecocyc_analysis = EcocycAnalysis(input_path, ecocyc_download_directory, output_directory, from_gene_names)
+        ecocyc_analysis = EcocycAnalysis(input_path, ecocyc_download_directory, output_directory, from_gene_names,
+                                         output_best_promoter)
         ecocyc_analysis.run()
 
 
