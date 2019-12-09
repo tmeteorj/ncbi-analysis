@@ -86,7 +86,7 @@ class TestEcocycAnalysis(unittest.TestCase):
         self.assertEqual(7, len(promoters))
         same_direction_promoters = filter_same_direction(gene_tu, promoters)
         self.assertEqual(5, len(same_direction_promoters))
-        promoter = get_target_promoter(gene_tu, data)
+        promoter, _ = get_target_promoter(gene_tu, data)
         self.assertEqual(10, promoter.idx)
 
     def test_promoter_position_extract_with_other_gene(self):
@@ -109,14 +109,13 @@ class TestEcocycAnalysis(unittest.TestCase):
         self.assertEqual(3, len(promoters))
         same_direction_promoters = filter_same_direction(gene_tu, promoters)
         self.assertEqual(3, len(same_direction_promoters))
-        promoter = get_target_promoter(gene_tu, data)
+        promoter, _ = get_target_promoter(gene_tu, data)
         self.assertEqual(0, promoter.idx)
 
     def test_target_promoter(self):
         test_cases = [['rplJ', 'EG10871', 0],
                       ['rplA', 'EG10864', 1],
-                      ['ftnB', 'G7033', 2],
-                      ['bipA', 'EG11837', 7]
+                      ['ftnB', 'G7033', 2]
                       ]
         for gene_name, ecocyc_id, target_idx in test_cases:
             body = self.get_body(ecocyc_id, 'promoter_', '.json')
@@ -128,5 +127,23 @@ class TestEcocycAnalysis(unittest.TestCase):
                 if gene_tu_info.is_gene(gene_name):
                     target_gene = gene_tu_info
                 data.append(gene_tu_info)
-            promoter = get_target_promoter(target_gene, data)
+            promoter, _ = get_target_promoter(target_gene, data)
             self.assertEqual(target_idx, promoter.idx)
+
+    def test_target_promoter_with_position(self):
+        test_cases = [['nuoL', 'EG12092', 'nuoAp1', 2405072],
+                      ['bipA', 'EG11837', 'typAp1', 4058407]]
+        for gene_name, ecocyc_id, target_promoter_name, target_pos in test_cases:
+            body = self.get_body(ecocyc_id, 'promoter_', '.json')
+            body = json.loads(body)
+            data = []
+            target_gene = None
+            for link in body['links']:
+                gene_tu_info = GeneTUInfo(link)
+                if gene_tu_info.is_gene(gene_name):
+                    target_gene = gene_tu_info
+                data.append(gene_tu_info)
+            promoter, near_gene_pos = get_target_promoter(target_gene, data)
+            self.assertTrue(promoter.get_promoter_name().startswith(target_promoter_name),
+                            'expect= %s, actual= %s' % (target_promoter_name, promoter.get_promoter_name()))
+            self.assertEqual(target_pos, near_gene_pos)

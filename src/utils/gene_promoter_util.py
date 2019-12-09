@@ -150,31 +150,18 @@ def get_target_promoter(target_gene: GeneTUInfo, tu_list: list):
     idx = 0 if direction == 'Right' else (tot - 1)
     last_promoter = None
     gene_appears = False
+    near_gene_pos = None
     while 0 <= idx < tot:
         item = ls[idx]
         if item.is_gene():
-            gene_appears = True
+            if not gene_appears:
+                gene_appears = True
+                near_gene_pos = item.get_gene_start_position()
             if item.same(target_gene):
-                return last_promoter
+                return last_promoter, near_gene_pos
         elif item.is_promoter():
             if gene_appears or last_promoter is None:
                 last_promoter = item
                 gene_appears = False
         idx += add
-    return None
-
-#
-# def get_target_promoter(target_gene: GeneTUInfo, tu_list: list):
-#     genes = get_all_genes(tu_list)
-#     direction, bigger_than, less_than = get_valid_range(target_gene, genes)
-#     if bigger_than is None: bigger_than = -1000000000000
-#     if less_than is None: less_than = 10000000000000
-#     promoters = get_all_promoters(tu_list, direction, bigger_than, less_than, check_start_site=True)
-#     promoters = filter_same_direction(target_gene, promoters)
-#     best = None
-#     for promoter in promoters:
-#         if best is None:
-#             best = promoter
-#         else:
-#             best = get_better_one(best, promoter, direction)
-#     return best
+    return None, None

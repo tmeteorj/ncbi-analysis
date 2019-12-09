@@ -209,9 +209,9 @@ class EcocycAnalysis:
                     target_gene = gene_tu
             data.append(gene_tu)
         if self.output_best_promoter and target_gene is not None:
-            target_promoter = get_target_promoter(target_gene, data)
+            target_promoter, near_gene_pos = get_target_promoter(target_gene, data)
             if target_promoter is not None:
-                data = [target_gene, target_promoter]
+                data = [near_gene_pos, target_promoter]
         else:
             data = get_all_promoters(data, True)
         result['table_unites'] = data
@@ -248,9 +248,9 @@ class EcocycAnalysis:
             if val is None: val = ''
             info.append(val)
         table_unites = result.get('table_unites', [])
-        if self.output_best_promoter and len(table_unites) == 2 and table_unites[0].is_gene():
-            gene, promoter = table_unites
-            info.extend(['Gene Start Position', gene.get_gene_start_position()])
+        if self.output_best_promoter and len(table_unites) == 2 and type(table_unites[0]) is int:
+            near_gene_pos, promoter = table_unites
+            info.extend(['Gene Start Position', near_gene_pos])
             info.extend([promoter.get_promoter_name(), promoter.get_promoter_start_site(int_pos=True)])
             info = list(map(str, info))
         else:
