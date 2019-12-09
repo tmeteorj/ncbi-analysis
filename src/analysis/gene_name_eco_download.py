@@ -4,7 +4,7 @@ import traceback
 from urllib import request
 
 from utils.factories.logger_factory import LoggerFactory
-from utils.gene_promoter_util import GeneTUInfo, get_target_promoter
+from utils.gene_promoter_util import GeneTUInfo, get_target_promoter, get_all_promoters
 from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
 from utils.str_util import StrConverter
 
@@ -53,10 +53,13 @@ class EcocycAnalysis:
                     flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
                     _ = self.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
                     if flag_json:
-                        self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result, gene_name=gene_name)
+                        self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
+                                           gene_name=result['gene'])
                     if not flag_json:
                         fail_json_cnt += 1
-                    buff.append(self.format_result_json(result))
+                    if result['gene'] != gene_name:
+                        result['gene'] = gene_name + '->' + result['gene']
+                    buff.append(self.format_result_json(result, fw_error))
                     fw_result.write(buff[-1])
                     max_col = max(max_col, len(buff[-1].split('\t')))
                     fw_result.flush()
@@ -92,7 +95,7 @@ class EcocycAnalysis:
                                                gene_name=result['gene'])
                     if not flag_json:
                         fail_json_cnt += 1
-                    temp = self.format_result_json(result)
+                    temp = self.format_result_json(result, fw_error)
                     if temp.strip() == '':
                         raise ValueError('No result found')
                     buff.append(temp)
@@ -163,7 +166,7 @@ class EcocycAnalysis:
             raise ValueError('Parameter not correct')
         if os.path.exists(file_path):
             return True
-        for retry_time in range(3):
+        for retry_time in range(1):
             flag = False
             failed_urls = []
             for url in urls:
@@ -204,12 +207,13 @@ class EcocycAnalysis:
             if self.output_best_promoter and gene_name is not None:
                 if gene_tu.is_gene(gene_name):
                     target_gene = gene_tu
-            if gene_tu.is_promoter(check_start_site=True):
-                data.append(gene_tu)
+            data.append(gene_tu)
         if self.output_best_promoter and target_gene is not None:
             target_promoter = get_target_promoter(target_gene, data)
             if target_promoter is not None:
                 data = [target_gene, target_promoter]
+        else:
+            data = get_all_promoters(data, True)
         result['table_unites'] = data
 
     def get_ecocyc_id(self, prefix, gene_name):
@@ -228,7 +232,7 @@ class EcocycAnalysis:
         if not os.path.exists(new_path) and os.path.exists(original_path):
             os.rename(original_path, new_path)
 
-    def format_result_json(self, result):
+    def format_result_json(self, result, fw_error=None):
         keys = ['gene', 'cluster']
         info = [result.get(key, '') for key in keys]
         product_type = ''
@@ -244,12 +248,15 @@ class EcocycAnalysis:
             if val is None: val = ''
             info.append(val)
         table_unites = result.get('table_unites', [])
-        if self.output_best_promoter and len(table_unites) == 2 and table_unites[0].is_gene(result['gene']):
+        if self.output_best_promoter and len(table_unites) == 2 and table_unites[0].is_gene():
             gene, promoter = table_unites
             info.extend(['Gene Start Position', gene.get_gene_start_position()])
             info.extend([promoter.get_promoter_name(), promoter.get_promoter_start_site(int_pos=True)])
+            info = list(map(str, info))
         else:
             for promoter in table_unites:
                 info.extend([promoter.get_promoter_name(), promoter.get_promoter_start_site()])
-        info = map(str, info)
+            info = list(map(str, info))
+            if self.output_best_promoter and fw_error is not None:
+                fw_error.write('\t'.join(info) + '\n')
         return '\t'.join(info) + '\n'

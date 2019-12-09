@@ -114,7 +114,10 @@ class TestEcocycAnalysis(unittest.TestCase):
 
     def test_target_promoter(self):
         test_cases = [['rplJ', 'EG10871', 0],
-                      ['rplA', 'EG10864', 1]]
+                      ['rplA', 'EG10864', 1],
+                      ['ftnB', 'G7033', 2],
+                      ['bipA', 'EG11837', 7]
+                      ]
         for gene_name, ecocyc_id, target_idx in test_cases:
             body = self.get_body(ecocyc_id, 'promoter_', '.json')
             body = json.loads(body)

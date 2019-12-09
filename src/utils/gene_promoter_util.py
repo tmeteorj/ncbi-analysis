@@ -144,7 +144,7 @@ def get_target_promoter(target_gene: GeneTUInfo, tu_list: list):
     promoters = get_all_promoters(tu_list, True)
     promoters = filter_same_direction(target_gene, promoters)
     ls = genes + promoters
-    ls.sort(key=lambda arg: arg.left if direction == 'Right' else arg.right)
+    ls.sort(key=lambda arg: (arg.left if direction == 'Right' else arg.right) * 10 + int(arg.is_gene()))
     tot = len(ls)
     add = 1 if direction == 'Right' else -1
     idx = 0 if direction == 'Right' else (tot - 1)
