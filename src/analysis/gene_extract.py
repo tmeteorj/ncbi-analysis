@@ -1,11 +1,12 @@
 import os
+import traceback
 
 from utils.gene_file_util import GeneFileReader
 from utils.str_util import StrConverter
 
 
 class GeneExtract:
-    def __init__(self, data_path, rna_path, output_directory, gene_extract_based='gene'):
+    def __init__(self, data_path, rna_path, output_directory, gene_extract_based='gene', left_idx=-2, right_idx=-1):
         self.data_path = data_path
         self.rna_path = rna_path
         self.output_directory = output_directory
@@ -14,6 +15,8 @@ class GeneExtract:
         self.result_path = os.path.join(self.output_directory, '%s_extract_result.txt' % file_prefix)
         self.gene_extract_based = gene_extract_based
         self.gene_reader = GeneFileReader(self.data_path)
+        self.left_idx = left_idx
+        self.right_idx = right_idx
 
     def run(self):
         self.gene_reader.build_information()
@@ -40,17 +43,20 @@ class GeneExtract:
                     fw.write(line.strip('\n'))
                     info = line.strip().split('\t')
                     if len(info) == 5:
-                        a, b = map(int, info[-2:])
-                        left = min(a, b)
-                        right = max(a, b)
-                        direction = a < b
-                        if direction:
-                            right += 2
-                        else:
-                            left -= 2
-                        dna = dna_code[left:right + 1]
-                        if not direction:
-                            fw.write('\t' + dna[::-1])
-                        else:
-                            fw.write('\t' + dna)
+                        try:
+                            a, b = map(int, [info[self.left_idx], info[self.right_idx]])
+                            left = min(a, b)
+                            right = max(a, b)
+                            direction = a < b
+                            if direction:
+                                right += 2
+                            else:
+                                left -= 2
+                            dna = dna_code[left:right + 1]
+                            if not direction:
+                                fw.write('\t' + dna[::-1])
+                            else:
+                                fw.write('\t' + dna)
+                        except:
+                            traceback.print_exc()
                     fw.write('\n')

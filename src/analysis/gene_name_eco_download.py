@@ -1,3 +1,4 @@
+import gzip
 import json
 import os
 import traceback
@@ -11,12 +12,13 @@ from utils.str_util import StrConverter
 
 class EcocycAnalysis:
     def __init__(self, input_path, download_directory, output_directory, from_gene_names=True,
-                 output_best_promoter=False):
+                 output_best_promoter=False, cookie=None):
         self.download_directory = download_directory
         self.output_directory = output_directory
         self.input_path = input_path
         self.from_gene_names = from_gene_names
         self.output_best_promoter = output_best_promoter
+        self.cookie = cookie
 
         file_name = os.path.basename(input_path)
         file_prefix = StrConverter.extract_file_name(file_name)
@@ -32,8 +34,8 @@ class EcocycAnalysis:
         fw_error = open(self.ecocyc_error_path, 'w', encoding='utf8')
         fw_result = open(self.ecocyc_result_path, 'w', encoding='utf8')
         buff = []
-        max_col = 0
         if self.from_gene_names:
+            fw_result.write('gene\tstatus\tgene_start_pos\tpromoter_name\tpromoter_pos\n')
             gene_items = list(filter(lambda arg: arg.strip() != '', open(self.input_path, 'r').readlines()))
             total_cnt = len(gene_items)
             self.logger.info_with_expire_time(
@@ -44,8 +46,6 @@ class EcocycAnalysis:
                     info = line.strip().split('\t')
                     gene_name = info[0].strip()
                     result = {'gene': gene_name}
-                    if len(info) > 1:
-                        result['cluster'] = info[1]
                     self.write_body(gene_name=gene_name)
                     ecocyc_id = self.get_ecocyc_id(prefix='gene_', gene_name=gene_name)
                     result['ecocyc_id'] = ecocyc_id
@@ -59,14 +59,19 @@ class EcocycAnalysis:
                         fail_json_cnt += 1
                     if result['gene'] != gene_name:
                         result['gene'] = gene_name + '->' + result['gene']
-                    buff.append(self.format_result_json(result, fw_error))
-                    fw_result.write(buff[-1])
-                    max_col = max(max_col, len(buff[-1].split('\t')))
+                    if result['table_unites'][0] == 'Not Found':
+                        fw_result.write('%s\tNot Found\n' % result['gene'])
+                    else:
+                        promoter = result['table_unites'][1]
+                        fw_result.write('%s\tFound\t%s\t%s\t%s\n' % (
+                            result['gene'], result['table_unites'][0], promoter.get_promoter_name(),
+                            promoter.get_promoter_start_site(int_pos=True)))
                     fw_result.flush()
                     succ_cnt += 1
                 except:
+                    fw_result.write('%s\tNot Found\n' % result['gene'])
                     traceback.print_exc()
-                    fw_error.write(gene_name + '\t' + str(ecocyc_id) + '\n')
+                    fw_error.write(gene_name + '\n')
                     fw_error.flush()
                     fail_cnt += 1
                 solve_cnt += 1
@@ -116,17 +121,6 @@ class EcocycAnalysis:
                     solve_cnt, total_cnt)
 
         fw_error.close()
-        fw_result.close()
-        with open(self.ecocyc_result_path, 'w', encoding='utf8') as fw:
-            fw.write('gene\tcluster\tproduct_type\tproduct\tlocation\treaction')
-            max_col -= 6
-            max_col //= 2
-            for idx in range(max_col):
-                fw.write('\tpromoter#%d\tstart#%d' % (idx + 1, idx + 1))
-            fw.write('\n')
-            for line in buff:
-                if line.strip() == '': continue
-                fw.write(line)
 
     def extract_urls_from_file(self):
         with open(self.input_path, 'r', encoding='utf8') as fr:
@@ -166,19 +160,39 @@ class EcocycAnalysis:
             raise ValueError('Parameter not correct')
         if os.path.exists(file_path):
             return True
-        for retry_time in range(1):
+        for retry_time in range(2):
             flag = False
-            failed_urls = []
             for url in urls:
                 try:
-                    x = request.urlopen(url, timeout=30)
-                    body = x.read().decode('utf8')
-                    with open(file_path, 'w', encoding='utf8') as fw:
-                        fw.write(body)
-                        flag = True
-                    break
+                    if retry_time == 0:
+                        x = request.urlopen(url, timeout=30)
+                        body = x.read().decode('utf8')
+                        with open(file_path, 'w', encoding='utf8') as fw:
+                            fw.write(body)
+                            flag = True
+                            break
+                    else:
+                        headers = {"Host": "biocyc.org",
+                                   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36",
+                                   "Accept": "*/*",
+                                   "Sec-Fetch-Site": "same-origin",
+                                   "Sec-Fetch-Mode": "cors",
+                                   'Accept-Encoding': "gzip, deflate, br",
+                                   'Connection': "Keep-Alive",
+                                   'Cookie': self.cookie
+                                   }
+                        req = request.Request(url=url, headers=headers)
+                        x = request.urlopen(req, timeout=30)
+                        body = x.read()
+                        for item in x.headers._headers:
+                            if item[0].lower() == 'content-encoding' and item[1].lower() == 'gzip':
+                                body = gzip.decompress(body)
+                        body = body.decode('utf-8')
+                        with open(file_path, 'w', encoding='utf8') as fw:
+                            fw.write(body)
+                            flag = True
+                            break
                 except:
-                    failed_urls.append(url)
                     continue
             if flag:
                 break
@@ -208,10 +222,15 @@ class EcocycAnalysis:
                 if gene_tu.is_gene(gene_name):
                     target_gene = gene_tu
             data.append(gene_tu)
-        if self.output_best_promoter and target_gene is not None:
-            target_promoter, near_gene_pos = get_target_promoter(target_gene, data)
-            if target_promoter is not None:
-                data = [near_gene_pos, target_promoter]
+        if self.output_best_promoter:
+            flag = False
+            if target_gene is not None:
+                target_promoter, near_gene_pos = get_target_promoter(target_gene, data)
+                if target_promoter is not None:
+                    data = [near_gene_pos, target_promoter]
+                    flag = True
+            if not flag:
+                data = ['Not Found']
         else:
             data = get_all_promoters(data, True)
         result['table_unites'] = data
