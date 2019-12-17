@@ -1,8 +1,10 @@
+import gzip
 import json
 import os
 import unittest
 from urllib import request
 
+from analysis.gene_name_eco_download import EcocycAnalysis
 from utils.gene_promoter_util import GeneTUInfo, filter_same_direction, get_all_promoters, get_target_promoter
 from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
 
@@ -12,6 +14,11 @@ class TestEcocycAnalysis(unittest.TestCase):
         self.root_directory = os.sep.join(os.getcwd().split(os.sep)[:-2])
         self.data_directory = os.path.join(self.root_directory, 'data', 'rna_analysis')
         self.download_directory = os.path.join(self.data_directory, 'ecocyc_download_data')
+        self.ecocyc_analysis = EcocycAnalysis('',
+                                              self.download_directory,
+                                              os.path.join(self.root_directory, 'data', 'rna_analysis_result'),
+                                              True,
+                                              True)
 
     def get_body(self, gene_name, prefix, suffix='.html'):
         path = os.path.join(self.download_directory, prefix + gene_name + suffix)
@@ -112,24 +119,6 @@ class TestEcocycAnalysis(unittest.TestCase):
         promoter, _ = get_target_promoter(gene_tu, data)
         self.assertEqual(0, promoter.idx)
 
-    def test_target_promoter(self):
-        test_cases = [['rplJ', 'EG10871', 0],
-                      ['rplA', 'EG10864', 1],
-                      ['ftnB', 'G7033', 2]
-                      ]
-        for gene_name, ecocyc_id, target_idx in test_cases:
-            body = self.get_body(ecocyc_id, 'promoter_', '.json')
-            body = json.loads(body)
-            data = []
-            target_gene = None
-            for link in body['links']:
-                gene_tu_info = GeneTUInfo(link)
-                if gene_tu_info.is_gene(gene_name):
-                    target_gene = gene_tu_info
-                data.append(gene_tu_info)
-            promoter, _ = get_target_promoter(target_gene, data)
-            self.assertEqual(target_idx, promoter.idx)
-
     def test_target_promoter_with_position(self):
         test_cases = [['nuoL', 'EG12092', 'nuoAp1', 2405072],
                       ['bipA', 'EG11837', 'typAp1', 4058407]]
@@ -147,3 +136,41 @@ class TestEcocycAnalysis(unittest.TestCase):
             self.assertTrue(promoter.get_promoter_name().startswith(target_promoter_name),
                             'expect= %s, actual= %s' % (target_promoter_name, promoter.get_promoter_name()))
             self.assertEqual(target_pos, near_gene_pos)
+
+    def test_target_promoter_with_gene(self):
+        test_cases = [['rpsR', 'rpsFp', 4425118],
+                      ['nfsB', 'nfsBp', 605424]]
+        for target_gene, target_promoter_name, target_pos in test_cases:
+            result = {}
+            self.ecocyc_analysis.write_body(gene_name=target_gene)
+            ecocyc_id = self.ecocyc_analysis.get_ecocyc_id(prefix='gene_', gene_name=target_gene)
+            self.assertIsNotNone(ecocyc_id)
+            self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, get_summary=True)
+            flag_json = self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, get_summary=False)
+            self.assertTrue(flag_json)
+            _ = self.ecocyc_analysis.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
+            self.ecocyc_analysis.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
+                                               gene_name=result['gene'])
+            table_unites = result['table_unites']
+            self.assertEqual(2, len(table_unites))
+            self.assertEqual(target_pos, table_unites[0])
+            self.assertTrue(table_unites[1].get_promoter_name().startswith(target_promoter_name), target_gene)
+
+    def test_json_download(self):
+        url = 'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-INDEX_NO-PLOC_EG10917.wg'
+        headers = {"Host": "biocyc.org",
+                   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36",
+                   "Accept": "*/*",
+                   "Sec-Fetch-Site": "same-origin",
+                   "Sec-Fetch-Mode": "cors",
+                   "Referer": "https://biocyc.org/gene?orgid=ECOLI&id=EG10917",
+                   'Accept-Encoding': "gzip, deflate, br",
+                   'Connection': "Keep-Alive",
+                   'Cookie': '_ga=GA1.2.875762027.1575036338; _gid=GA1.2.971915220.1575696508; frameWidth=1500; frameHeight=764; hideNavbox=1; PTools-session=biocyc13~biocyc14-3784025162%7CNIL%20NIL%20%22%22%2042107%200%20(%3AWEB%20NIL%203784690422%20((%3ABASICS%203)%20(%3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%20ECOBASE%20NIL%20NIL%20%7Cfh3wlpkjjc5915z11by6r1u2o6s11jt; pagecount=16; credentialId=218865; secretKey="27oXO8IVRHh01SA3ae/qL9Yqfwk="; windowOrg=ptools0%3AECOLI%3A; recentOrgID0=ECOLI; JSESSIONID=FFBE3E25C644A36A2B29D6C129C3FF15; _gat=1'
+                   }
+        req = request.Request(url=url, headers=headers)
+        x = request.urlopen(req, timeout=30)
+        body = x.read()
+        dec_body = gzip.decompress(body)
+        dec_body = dec_body.decode('utf-8')
+        print(body)
