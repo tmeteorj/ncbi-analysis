@@ -21,7 +21,13 @@ extract_gene_sequence = 'gene_promoter_list.txt'
 gene_extract_based = 'range'
 do_gene_extract = False
 
-ecocyc_gene_files = ['sheet_1.txt', 'sheet_2.txt', 'sheet_3.txt']
+ecocyc_gene_files = ['1218.txt']
+ecocyc_params = {
+    'from_gene_names': True,
+    'output_best_promoter': True,
+    'output_gene_sequence': True,
+    'output_detail_information': True
+}
 from_gene_names = True
 output_best_promoter = True
 do_ecocyc_analysis = True
@@ -59,12 +65,14 @@ def run_ecocyc_analysis():
     data_path = os.path.join(rna_download_directory, extract_gene_file_name)
     for ecocyc_gene_file in ecocyc_gene_files:
         input_path = os.path.join(data_directory, ecocyc_gene_file)
-        ecocyc_analysis = EcocycAnalysis(input_path, ecocyc_download_directory, output_directory, from_gene_names,
-                                         output_best_promoter, cookie)
+        ecocyc_analysis = EcocycAnalysis(input_path, ecocyc_download_directory, output_directory, ecocyc_params, cookie)
         ecocyc_analysis.run()
-        seq_path = ecocyc_analysis.ecocyc_result_path
-        gene_extract = GeneExtract(data_path, seq_path, output_directory, 'range', -3, -1)
-        gene_extract.run()
+        if ecocyc_params['output_gene_sequence']:
+            seq_path = ecocyc_analysis.ecocyc_result_path
+            left_idx = ecocyc_analysis.sequence_start_idx
+            right_idx = ecocyc_analysis.sequence_end_idx
+            gene_extract = GeneExtract(data_path, seq_path, output_directory, 'range', left_idx, right_idx)
+            gene_extract.run()
 
 
 if __name__ == '__main__':
