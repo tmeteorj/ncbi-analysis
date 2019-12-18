@@ -14,6 +14,7 @@ class EcocycHTMLParser(HTMLParser):
         super(EcocycHTMLParser, self).__init__()
         self.last_td_data = None
         self.last_ecocyc_id = None
+        self.last_a_data = None
 
         self.do_extract_id = do_extract_id
         self.gene_name = gene_name
@@ -25,6 +26,8 @@ class EcocycHTMLParser(HTMLParser):
         self.ecocyc_id = None
 
     def handle_starttag(self, tag, attrs):
+        if tag == 'a':
+            self.last_a_data = ''
         if tag == 'td':
             self.depth += 1
         tag = tag.strip()
@@ -47,23 +50,25 @@ class EcocycHTMLParser(HTMLParser):
         elif tag == 'a':
             if self.last_td_data == 'reaction' and self.extract_attr['reaction']:
                 self.extract_attr['reaction'] += '__#####__'
-
+            if self.do_extract_id and self.last_ecocyc_id is not None:
+                gene_name = self.extract_gene_name(self.last_a_data)
+                if gene_name == self.gene_name:
+                    self.ecocyc_id = self.last_ecocyc_id
+                else:
+                    self.last_ecocyc_id = None
+            self.last_a_data = None
         logger.debug("End tag  :%s" % tag)
 
     def handle_data(self, data):
         data = data.strip()
+        if self.last_a_data is not None:
+            self.last_a_data += data
         if data == 'Locations' or data == 'Reactions':
             data = data[:-1]
         if self.do_extract_id:
             if self.lasttag == 'script' and data.startswith(ecocyc_id_script_prefix):
                 data = data[len(ecocyc_id_script_prefix):]
                 self.ecocyc_id = self.extract_id_from_data(data)
-            elif self.lasttag in ['a', 'b'] and self.last_ecocyc_id is not None:
-                gene_name = self.extract_gene_name(data)
-                if gene_name == self.gene_name:
-                    self.ecocyc_id = self.last_ecocyc_id
-                else:
-                    self.last_ecocyc_id = None
         elif data != '':
             if self.last_td_data in self.extract_attr:
                 self.extract_attr[self.last_td_data] += data
