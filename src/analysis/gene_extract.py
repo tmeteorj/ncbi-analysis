@@ -17,11 +17,18 @@ class GeneExtract:
         self.gene_reader = GeneFileReader(self.data_path)
         self.left_idx = left_idx
         self.right_idx = right_idx
+        self.headers = {}
+        self.inv_headers = []
+
+    def generate_header(self, items):
+        for idx, col_name in enumerate(items.strip().split('\t')):
+            self.headers[col_name] = idx
+            self.inv_headers.append(col_name)
 
     def run(self):
         self.gene_reader.build_information()
         dna_code = self.gene_reader.dna_code
-        with open(self.result_path, 'w') as fw:
+        with open(self.result_path, 'w', encoding='utf8') as fw:
             if self.gene_extract_based == 'gene':
                 fw.write('No\tgene\tfrom\t\tend\tproduct\tsequence\n')
                 for gene_idx, gene in enumerate(open(self.rna_path)):
@@ -39,12 +46,17 @@ class GeneExtract:
                     if not succ:
                         print('%s not found in %s' % (gene, self.data_path))
             elif self.gene_extract_based == 'range':
-                for line in open(self.rna_path):
-                    fw.write(line.strip('\n'))
-                    info = line.strip().split('\t')
-                    if len(info) == 5:
+                lines = [line.strip() for line in open(self.rna_path, 'r', encoding='utf8')]
+                self.generate_header(lines[0])
+                fw.write(lines[0] + '\n')
+                for line in lines[1:]:
+                    result = {}
+                    infos = line.strip().split('\t')
+                    for idx, info in enumerate(infos):
+                        result[self.inv_headers[idx]] = info
+                    if result.get('sequence', '') == '':
                         try:
-                            a, b = map(int, [info[self.left_idx], info[self.right_idx]])
+                            a, b = map(int, [infos[self.left_idx], infos[self.right_idx]])
                             left = min(a, b)
                             right = max(a, b)
                             direction = a < b
@@ -54,9 +66,16 @@ class GeneExtract:
                                 left -= 2
                             dna = dna_code[left:right + 1]
                             if not direction:
-                                fw.write('\t' + dna[::-1])
+                                result['sequence'] = dna[::-1]
                             else:
-                                fw.write('\t' + dna)
+                                result['sequence'] = dna
                         except:
+                            print(infos)
                             traceback.print_exc()
-                    fw.write('\n')
+                    fw.write(self.extract_output(result) + '\n')
+
+    def extract_output(self, result):
+        output = []
+        for name in self.inv_headers:
+            output.append(result.get(name, ''))
+        return '\t'.join(output)
