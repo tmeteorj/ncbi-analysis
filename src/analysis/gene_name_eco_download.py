@@ -101,7 +101,12 @@ class EcocycAnalysis:
     def extract_output(self, result):
         output = []
         for name in self.inv_headers:
-            if result.get(name, '') in ['', 'Not Found']:
+            if name == 'product_type':
+                for key in ['enzyme', 'rna', 'protein', 'polypeptide', 'function when intact', 'transporter']:
+                    if result.get(key, '') != '':
+                        result['product_type'] = key
+                        result['product'] = result[key]
+            elif result.get(name, '') in ['', 'Not Found']:
                 try:
                     if name in ['status', 'promoter_name', 'promoter_pos', 'gene_start_pos']:
                         if result['table_unites'][0] == 'Not Found':
