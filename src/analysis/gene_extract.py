@@ -60,11 +60,10 @@ class GeneExtract:
                             left = min(a, b)
                             right = max(a, b)
                             direction = a < b
-                            if direction:
-                                right += 2
-                            else:
-                                left -= 2
-                            dna = dna_code[left:right + 1]
+                            if not direction:
+                                left += 1
+                                right += 1
+                            dna = dna_code[left:right]
                             if not direction:
                                 result['sequence'] = dna[::-1]
                             else:

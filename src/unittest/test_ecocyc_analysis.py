@@ -17,8 +17,12 @@ class TestEcocycAnalysis(unittest.TestCase):
         self.ecocyc_analysis = EcocycAnalysis('',
                                               self.download_directory,
                                               os.path.join(self.root_directory, 'data', 'rna_analysis_result'),
-                                              True,
-                                              True)
+                                              {
+                                                  'from_gene_names': True,
+                                                  'output_best_promoter': True,
+                                                  'output_gene_sequence': True,
+                                                  'output_detail_information': True
+                                              })
 
     def get_body(self, gene_name, prefix, suffix='.html'):
         path = os.path.join(self.download_directory, prefix + gene_name + suffix)
@@ -33,10 +37,12 @@ class TestEcocycAnalysis(unittest.TestCase):
         self.assertEqual('EG10284', parser.ecocyc_id)
 
     def test_multi_ecocyc_id_extract(self):
-        body = self.get_body('fadI', prefix='gene_')
-        parser = EcocycHTMLParser(do_extract_id=True, gene_name='fadI')
-        parser.feed(body)
-        self.assertEqual('G7213', parser.ecocyc_id)
+        for name, ecocyc_id in [['fadI', 'G7213'],
+                                ['sra', 'EG11508']]:
+            body = self.get_body(name, prefix='gene_')
+            parser = EcocycHTMLParser(do_extract_id=True, gene_name=name)
+            parser.feed(body)
+            self.assertEqual(ecocyc_id, parser.ecocyc_id)
 
     def test_attr_extraction(self):
         body = self.get_body('EG10875', 'tu_')

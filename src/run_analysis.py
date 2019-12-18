@@ -21,7 +21,7 @@ extract_gene_sequence = 'gene_promoter_list.txt'
 gene_extract_based = 'range'
 do_gene_extract = False
 
-ecocyc_gene_files = ['1218.txt']
+ecocyc_gene_files = ['1218_sample.txt']
 ecocyc_params = {
     'from_gene_names': True,
     'output_best_promoter': True,
