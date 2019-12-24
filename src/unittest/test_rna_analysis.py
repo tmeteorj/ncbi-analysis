@@ -49,6 +49,10 @@ class TestRNAAnalysis(unittest.TestCase):
         gene_data_reader = GeneFileReader(input_path)
         gene_data_reader.build_information()
         self.assertTrue(len(gene_data_reader.gene_segments) > 0)
+        with open(os.path.join(self.data_directory, 'gene_all.txt'), 'w', encoding='utf8') as fw:
+            for gene_segment in gene_data_reader.gene_segments:
+                if gene_segment.gene is not None:
+                    fw.write(gene_segment.gene + '\n')
 
     def test_extract_gene(self):
         data_path = os.path.join(self.download_directory, 'NC_000913.3.txt')

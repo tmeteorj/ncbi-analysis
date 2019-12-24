@@ -21,7 +21,7 @@ extract_gene_sequence = 'gene_promoter_list.txt'
 gene_extract_based = 'range'
 do_gene_extract = False
 
-ecocyc_gene_files = ['1218_sample.txt']
+ecocyc_gene_files = ['gene_all.txt']
 ecocyc_params = {
     'from_gene_names': True,
     'output_best_promoter': True,
@@ -31,13 +31,15 @@ ecocyc_params = {
 from_gene_names = True
 output_best_promoter = True
 do_ecocyc_analysis = True
-cookie = '_ga=GA1.2.875762027.1575036338; PTools-session=biocyc13~biocyc14-3784025162' \
-         '%7CNIL%20NIL%20%22%22%2042107%200%20(%3AWEB%20NIL%203784690422%20((%3ABASICS' \
-         '%203)%20(%3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%20ECOBASE%20NIL' \
-         '%20NIL%20%7Cfh3wlpkjjc5915z11by6r1u2o6s11jt; JSESSIONID=8A2391A324BDB16560DC05BD35D59C5F; ' \
-         'pagecount=17; credentialId=218865; secretKey="27oXO8IVRHh01SA3ae/qL9Yqfwk="; ' \
-         '_gid=GA1.2.1437945791.1576507213; windowOrg=ptools0%3AECOLI%3A; recentOrgID0=ECOLI; ' \
-         'frameWidth=1500; frameHeight=764; _gat=1'
+cookie = 'JSESSIONID=5024623FB81668DC539CCBF0EF1B2161;' \
+         ' _ga=GA1.2.407871027.1577110083; _gid=GA1.2.108' \
+         '3609699.1577199684; _gat=1; PTools-session=bioc' \
+         'yc14b~biocyc14-3786098971%7CNIL%20NIL%20%22%22%20NI' \
+         'L%200%20(%3AWEB%20NIL%20-1%20((%3ABASICS%20-1)%20(%' \
+         '3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%' \
+         '20ECOBASE%20NIL%20NIL%20%7Ch0x9lugmbx6fhk3bevsf98cen' \
+         '2omar5; windowOrg=ptools0%3AECOLI%3A; recentOrgID0=' \
+         'ECOLI; frameWidth=1500; frameHeight=761; pagecount=3'
 
 
 def run_cluster_match():
