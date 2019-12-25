@@ -30,48 +30,79 @@ class GeneExtract:
         dna_code = self.gene_reader.dna_code
         with open(self.result_path, 'w', encoding='utf8') as fw:
             if self.gene_extract_based == 'gene':
-                fw.write('No\tgene\tfrom\t\tend\tproduct\tsequence\n')
-                for gene_idx, gene in enumerate(open(self.rna_path)):
-                    gene = gene.strip()
-                    succ = False
-                    for idx in self.gene_reader.gene_name_segment_map.get(gene, []):
-                        gene_segment = self.gene_reader.gene_segments[idx]
-                        succ = True
-                        start = gene_segment.cds[0]
-                        end = gene_segment.cds[1]
-                        product = gene_segment.product
-                        sequence = dna_code[start - 1:end]
-                        fw.write('d%d\t%s\t%s\t%s\t%s\t%s\n' % (
-                            gene_idx + 1, gene, start, end, product, sequence))
-                    if not succ:
-                        print('%s not found in %s' % (gene, self.data_path))
+                self.extract_sequence_based_on_gene(dna_code, fw)
             elif self.gene_extract_based == 'range':
-                lines = [line.strip() for line in open(self.rna_path, 'r', encoding='utf8')]
-                self.generate_header(lines[0])
-                fw.write(lines[0] + '\n')
-                for line in lines[1:]:
-                    result = {}
-                    infos = line.strip().split('\t')
-                    for idx, info in enumerate(infos):
-                        result[self.inv_headers[idx]] = info
-                    if result.get('sequence', '') == '':
-                        try:
-                            a, b = map(int, [infos[self.left_idx], infos[self.right_idx]])
-                            left = min(a, b)
-                            right = max(a, b)
-                            direction = a < b
-                            if not direction:
-                                left += 1
-                                right += 1
-                            dna = dna_code[left:right]
-                            if not direction:
-                                result['sequence'] = dna[::-1]
-                            else:
-                                result['sequence'] = dna
-                        except:
-                            print(infos)
-                            traceback.print_exc()
-                    fw.write(self.extract_output(result) + '\n')
+                self.extract_sequence_based_on_range(dna_code, fw)
+            elif self.gene_extract_based == 'utr':
+                self.extract_sequence_based_on_utr(dna_code, fw)
+
+    def extract_sequence_based_on_utr(self, dna_code, fw):
+        lines = [line.strip() for line in open(self.rna_path, 'r', encoding='utf8')]
+        self.generate_header(lines[0])
+        fw.write(lines[0] + '\n')
+        last_end = 0
+        for line in lines[1:]:
+            items = line.split('\t')
+            locus = items[self.headers['Locus']]
+            locus = locus.split(':')[1]
+            left, right = map(int, locus.split('-'))
+            result = {}
+            for idx, item in enumerate(items):
+                result[self.inv_headers[idx]] = item
+            result['Last utr sequence'] = dna_code[last_end:left - 1]
+            last_end = right
+            fw.write(self.extract_output(result) + '\n')
+        result = {}
+        result['Last utr sequence'] = dna_code[last_end:]
+        fw.write(self.extract_output(result))
+
+    def extract_sequence_based_on_gene(self, dna_code, fw):
+        fw.write('No\tgene\tfrom\t\tend\tproduct\tsequence\n')
+        for gene_idx, gene in enumerate(open(self.rna_path)):
+            gene = gene.strip()
+            succ = False
+            for idx in self.gene_reader.gene_name_segment_map.get(gene, []):
+                gene_segment = self.gene_reader.gene_segments[idx]
+                succ = True
+                start = gene_segment.cds[0]
+                end = gene_segment.cds[1]
+                product = gene_segment.product
+                sequence = dna_code[start - 1:end]
+                fw.write('d%d\t%s\t%s\t%s\t%s\t%s\n' % (
+                    gene_idx + 1, gene, start, end, product, sequence))
+            if not succ:
+                print('%s not found in %s' % (gene, self.data_path))
+
+    def extract_sequence_based_on_range(self, dna_code, fw):
+        lines = [line.strip() for line in open(self.rna_path, 'r', encoding='utf8')]
+        self.generate_header(lines[0])
+        fw.write(lines[0] + '\n')
+        for line in lines[1:]:
+            result = {}
+            infos = line.strip().split('\t')
+            for idx, info in enumerate(infos):
+                result[self.inv_headers[idx]] = info
+            if result.get('sequence', '') == '':
+                try:
+                    a, b = map(int, [infos[self.left_idx], infos[self.right_idx]])
+                    left = min(a, b)
+                    right = max(a, b)
+                    direction = a < b
+                    # id start from 0
+                    left -= 1
+                    right -= 1
+                    if not direction:
+                        left += 1
+                        right += 1
+                    dna = dna_code[left:right]
+                    if not direction:
+                        result['sequence'] = dna[::-1]
+                    else:
+                        result['sequence'] = dna
+                except:
+                    print(infos)
+                    traceback.print_exc()
+            fw.write(self.extract_output(result) + '\n')
 
     def extract_output(self, result):
         output = []
