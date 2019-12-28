@@ -31,14 +31,7 @@ ecocyc_params = {
 from_gene_names = True
 output_best_promoter = True
 do_ecocyc_analysis = True
-cookie = 'windowOrg=ptools0%3AECOLI%3A; recentOrgID0=ECOLI; pagecount=6; ' \
-         'frameHeight=761; frameWidth=1500; _gid=GA1.2.1083609699.15771' \
-         '99684; PTools-session=biocyc14b~biocyc14-3786098971%7CNIL%20N' \
-         'IL%20%22%22%20NIL%200%20(%3AWEB%20NIL%20-1%20((%3ABASICS%20-1' \
-         ')%20(%3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%20EC' \
-         'OBASE%20NIL%20NIL%20%7Ch0x9lugmbx6fhk3bevsf98cen2omar5; _ga=GA' \
-         '1.2.407871027.1577110083; JSESSIONID=47A60E1B3D39C1507092BC7C' \
-         '9F7A72A6; _gat=1'
+cookie = 'windowOrg=ptools0%3AECOLI%3Aptools1%3AECOLI%3A; recentOrgID0=ECOLI; pagecount=16; frameHeight=759; JSESSIONID=1D257C680D66CA41ED0FC9432FD0BD3E; frameWidth=1500; _gat=1; _gid=GA1.2.610587971.1577521867; PTools-session=biocyc14b~biocyc14-3786098971%7CNIL%20NIL%20%22%22%2042107%200%20(%3AWEB%20NIL%20-1%20((%3ABASICS%20-1)%20(%3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%20ECOBASE%20NIL%20NIL%20%7Cd0vt8w4rc07g29ilyr3o518e74ero6c; _ga=GA1.2.407871027.1577110083; credentialId=218865; secretKey=27oXO8IVRHh01SA3ae/qL9Yqfwk='
 
 
 def run_cluster_match():
