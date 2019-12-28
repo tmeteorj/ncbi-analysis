@@ -163,7 +163,7 @@ class TestEcocycAnalysis(unittest.TestCase):
             self.assertTrue(table_unites[1].get_promoter_name().startswith(target_promoter_name), target_gene)
 
     def test_json_download(self):
-        url = 'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-INDEX_NO-PLOC_EG10917.wg'
+        url = 'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-INDEX_NO-PLOC_G6081.wg'
         headers = {"Host": "biocyc.org",
                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36",
                    "Accept": "*/*",
@@ -172,7 +172,7 @@ class TestEcocycAnalysis(unittest.TestCase):
                    "Referer": "https://biocyc.org/gene?orgid=ECOLI&id=EG10917",
                    'Accept-Encoding': "gzip, deflate, br",
                    'Connection': "Keep-Alive",
-                   'Cookie': '_ga=GA1.2.875762027.1575036338; _gid=GA1.2.971915220.1575696508; frameWidth=1500; frameHeight=764; hideNavbox=1; PTools-session=biocyc13~biocyc14-3784025162%7CNIL%20NIL%20%22%22%2042107%200%20(%3AWEB%20NIL%203784690422%20((%3ABASICS%203)%20(%3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%20ECOBASE%20NIL%20NIL%20%7Cfh3wlpkjjc5915z11by6r1u2o6s11jt; pagecount=16; credentialId=218865; secretKey="27oXO8IVRHh01SA3ae/qL9Yqfwk="; windowOrg=ptools0%3AECOLI%3A; recentOrgID0=ECOLI; JSESSIONID=FFBE3E25C644A36A2B29D6C129C3FF15; _gat=1'
+                   'Cookie': 'pagecount=6; frameHeight=761; frameWidth=1500; PTools-session=biocyc14b~biocyc14-3786098971%7CNIL%20NIL%20%22%22%20NIL%200%20(%3AWEB%20NIL%20-1%20((%3ABASICS%20-1)%20(%3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%20ECOBASE%20NIL%20NIL%20%7Ch0x9lugmbx6fhk3bevsf98cen2omar5; _ga=GA1.2.407871027.1577110083; JSESSIONID=C648FCE2DAC5362DE3EE9322D39BD47E'
                    }
         req = request.Request(url=url, headers=headers)
         x = request.urlopen(req, timeout=30)

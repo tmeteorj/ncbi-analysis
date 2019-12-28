@@ -210,7 +210,16 @@ class EcocycAnalysis:
             raise ValueError('Parameter not correct')
         if os.path.exists(file_path):
             return True
-        for retry_time in range(2):
+        headers = {"Host": "biocyc.org",
+                   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36",
+                   "Accept": "*/*",
+                   "Sec-Fetch-Site": "same-origin",
+                   "Sec-Fetch-Mode": "cors",
+                   'Accept-Encoding': "gzip, deflate, br",
+                   'Connection': "Keep-Alive",
+                   'Cookie': self.cookie
+                   }
+        for retry_time in range(3):
             flag = False
             for url in urls:
                 try:
@@ -221,16 +230,13 @@ class EcocycAnalysis:
                             fw.write(body)
                             flag = True
                             break
+                    elif retry_time == 1:
+                        url = "https://biocyc.org/tmp/ptools-images/ECOLI/%s_REG-SUMMARY.wg" % ecocyc_id
+                        req = request.Request(url=url, headers=headers)
+                        x = request.urlopen(req, timeout=30)
+                        body = x.read()
+                        break
                     else:
-                        headers = {"Host": "biocyc.org",
-                                   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36",
-                                   "Accept": "*/*",
-                                   "Sec-Fetch-Site": "same-origin",
-                                   "Sec-Fetch-Mode": "cors",
-                                   'Accept-Encoding': "gzip, deflate, br",
-                                   'Connection': "Keep-Alive",
-                                   'Cookie': self.cookie
-                                   }
                         req = request.Request(url=url, headers=headers)
                         x = request.urlopen(req, timeout=30)
                         body = x.read()
