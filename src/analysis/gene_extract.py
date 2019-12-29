@@ -33,28 +33,6 @@ class GeneExtract:
                 self.extract_sequence_based_on_gene(dna_code, fw)
             elif self.gene_extract_based == 'range':
                 self.extract_sequence_based_on_range(dna_code, fw)
-            elif self.gene_extract_based == 'utr':
-                self.extract_sequence_based_on_utr(dna_code, fw)
-
-    def extract_sequence_based_on_utr(self, dna_code, fw):
-        lines = [line.strip() for line in open(self.rna_path, 'r', encoding='utf8')]
-        self.generate_header(lines[0])
-        fw.write(lines[0] + '\n')
-        last_end = 0
-        for line in lines[1:]:
-            items = line.split('\t')
-            locus = items[self.headers['Locus']]
-            locus = locus.split(':')[1]
-            left, right = map(int, locus.split('-'))
-            result = {}
-            for idx, item in enumerate(items):
-                result[self.inv_headers[idx]] = item
-            result['Last utr sequence'] = dna_code[last_end:left - 1]
-            last_end = right
-            fw.write(self.extract_output(result) + '\n')
-        result = {}
-        result['Last utr sequence'] = dna_code[last_end:]
-        fw.write(self.extract_output(result))
 
     def extract_sequence_based_on_gene(self, dna_code, fw):
         fw.write('No\tgene\tfrom\t\tend\tproduct\tsequence\n')

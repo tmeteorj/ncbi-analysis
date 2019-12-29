@@ -3,6 +3,7 @@ import os
 from analysis.cluster_match import ClusterMatcher
 from analysis.gene_extract import GeneExtract
 from analysis.gene_name_eco_download import EcocycAnalysis
+from analysis.gene_range_analysis import GeneRangeExtract
 from analysis.neighbor_analysis import NeighborAnalysis
 
 root_directory = os.sep.join(os.getcwd().split(os.sep)[:-1])
@@ -18,8 +19,8 @@ do_neighbor_analysis = False
 
 extract_gene_file_name = 'NC_000913.3.txt'
 extract_gene_sequence = 'gene_utr_to_find.txt'
-gene_extract_based = 'utr'
-do_gene_extract = True
+gene_extract_based = 'range'
+do_gene_extract = False
 
 ecocyc_gene_files = ['gene_all.txt']
 ecocyc_params = {
@@ -30,8 +31,12 @@ ecocyc_params = {
 }
 from_gene_names = True
 output_best_promoter = True
-do_ecocyc_analysis = True
 cookie = 'windowOrg=ptools0%3AECOLI%3Aptools1%3AECOLI%3A; recentOrgID0=ECOLI; pagecount=16; frameHeight=759; JSESSIONID=1D257C680D66CA41ED0FC9432FD0BD3E; frameWidth=1500; _gat=1; _gid=GA1.2.610587971.1577521867; PTools-session=biocyc14b~biocyc14-3786098971%7CNIL%20NIL%20%22%22%2042107%200%20(%3AWEB%20NIL%20-1%20((%3ABASICS%20-1)%20(%3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%20ECOBASE%20NIL%20NIL%20%7Cd0vt8w4rc07g29ilyr3o518e74ero6c; _ga=GA1.2.407871027.1577110083; credentialId=218865; secretKey=27oXO8IVRHh01SA3ae/qL9Yqfwk='
+do_ecocyc_analysis = False
+
+nc_range_file_name = 'gene_nc_range.txt'
+nc_gene_file_name = 'NC_000913.3.txt'
+do_nc_range_extract = True
 
 
 def run_cluster_match():
@@ -69,6 +74,13 @@ def run_ecocyc_analysis():
             gene_extract.run()
 
 
+def run_nc_range_extract():
+    data_path = os.path.join(rna_download_directory, nc_gene_file_name)
+    range_path = os.path.join(data_directory, nc_range_file_name)
+    gene_range_extract = GeneRangeExtract(data_path, range_path, output_directory)
+    gene_range_extract.run()
+
+
 if __name__ == '__main__':
     if do_cluster_match:
         run_cluster_match()
@@ -78,3 +90,5 @@ if __name__ == '__main__':
         run_gene_extract()
     if do_ecocyc_analysis:
         run_ecocyc_analysis()
+    if do_nc_range_extract:
+        run_nc_range_extract()
