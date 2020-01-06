@@ -1,3 +1,5 @@
+import os
+
 URL_LIB_PREFIX = 'https://www.ncbi.nlm.nih.gov/nuccore/'
 URL_DATA_DOWNLOAD = 'https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id=%s&db=nuccore' \
                     '&report=genbank&extrafeat=976&conwithfeat=on&withparts=on&retmode=txt' \
@@ -20,3 +22,9 @@ VALUE_CDS_START_WITH_SPACE = '     CDS'
 SET_NUMBER_RANGE10 = set(map(str, range(10)))
 
 MAX_ITERATION_TIME = 100
+
+root_directory = os.sep.join(os.getcwd().split(os.sep)[:-1])
+data_directory = os.path.join(root_directory, 'data', 'rna_analysis')
+output_directory = os.path.join(root_directory, 'data', 'rna_analysis_result')
+rna_download_directory = os.path.join(data_directory, 'rna_download_data')
+ecocyc_download_directory = os.path.join(data_directory, 'ecocyc_download_data')
