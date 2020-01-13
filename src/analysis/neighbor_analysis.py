@@ -5,10 +5,10 @@ import time
 import traceback
 from collections import Counter
 
+from utils.data_download_util import DataDownloadTool
 from utils.factories.logger_factory import LoggerFactory
-from utils.str_util import StrConverter
-from utils.data_download_util import DataDownloadTool, MAX_ITERATION_TIME
 from utils.gene_file_util import GeneFileReader
+from utils.str_util import StrConverter
 
 
 class NeighborAnalysis:
@@ -148,7 +148,7 @@ class NeighborAnalysis:
                                     [DataDownloadTool.format_data(line) for line in
                                      filter(lambda arg: arg.startswith('>'), f.readlines())])
             unsolved_datas = list(unsolved_datas)
-        for iteration_time in range(1, MAX_ITERATION_TIME + 1):
+        for iteration_time in range(1, ExperimentConfig.MAX_ITERATION_TIME + 1):
             unsolved_datas = self.find_neighbor_batch(unsolved_datas, iteration_time)
             if len(unsolved_datas) ==0:
                 break

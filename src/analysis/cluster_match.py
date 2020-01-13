@@ -2,9 +2,9 @@ import os
 import re
 import sys
 
+from experiment_config import ExperimentConfig
 from utils.factories.logger_factory import LoggerFactory
 from utils.str_util import StrConverter
-from experiment_config import SET_NUMBER_RANGE10
 
 
 class ClusterMatcher:
@@ -145,7 +145,7 @@ class ClusterMatcher:
             return True, None
 
     def update_sequence(self, index, elem, line):
-        if line.strip()[-1] not in SET_NUMBER_RANGE10:
+        if line.strip()[-1] not in ExperimentConfig.SET_NUMBER_RANGE10:
             elem['seq'] = elem.get('seq', '') + line.strip()
             return
         try:

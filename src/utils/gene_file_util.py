@@ -51,7 +51,7 @@ class GeneSegment:
         return '%s-%s\t%s' % (
             self.cds[0],
             self.cds[1],
-            VALUE_UNKNOWN if self.product is None else self.product)
+            ExperimentConfig.VALUE_UNKNOWN if self.product is None else self.product)
 
 
 class GeneFileReader:

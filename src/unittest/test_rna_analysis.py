@@ -5,7 +5,8 @@ from urllib import request
 from analysis.cluster_match import ClusterMatcher
 from analysis.gene_extract import GeneExtract
 from analysis.neighbor_analysis import NeighborAnalysis
-from utils.data_download_util import DataDownloadTool, URL_LIB_PREFIX
+from experiment_config import ExperimentConfig
+from utils.data_download_util import DataDownloadTool
 from utils.gene_file_util import GeneSegment, GeneFileReader
 
 
@@ -38,7 +39,7 @@ class TestRNAAnalysis(unittest.TestCase):
 
     def test_download_tool(self):
         key = "NZ_FTWJ01000011.1"
-        url = URL_LIB_PREFIX + key
+        url = ExperimentConfig.URL_LIB_PREFIX + key
         res = request.urlopen(url, timeout=60)
         self.assertIsNotNone(res)
         output_file_path = os.path.join(self.output_directory, 'sample_download_%s.txt' % key)
