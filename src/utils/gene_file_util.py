@@ -51,7 +51,7 @@ class GeneSegment:
         return '%s-%s\t%s' % (
             self.cds[0],
             self.cds[1],
-            VALUE_UNKNOWN if self.product is None else self.product)
+            ExperimentConfig.VALUE_UNKNOWN if self.product is None else self.product)
 
 
 class GeneFileReader:
@@ -147,16 +147,18 @@ class GeneFileReader:
     def check_line_type(line, part_status):
         strip_line = line.strip()
         if part_status == GeneDataPartType.HeaderPart:
-            if strip_line.startswith(VALUE_SOURCE_START):
+            if strip_line.startswith(ExperimentConfig.VALUE_SOURCE_START):
                 return GeneDataLineType.SourceLine
-            elif strip_line.startswith(VALUE_GENE_START) or strip_line.startswith(VALUE_REPEAT_REGION_START):
+            elif strip_line.startswith(ExperimentConfig.VALUE_GENE_START) or strip_line.startswith(
+                    ExperimentConfig.VALUE_REPEAT_REGION_START):
                 return GeneDataLineType.GeneSegmentStart
         elif part_status == GeneDataPartType.GeneSegmentPart:
-            if strip_line.startswith(VALUE_GENE_START) or strip_line.startswith(VALUE_REPEAT_REGION_START):
+            if strip_line.startswith(ExperimentConfig.VALUE_GENE_START) or strip_line.startswith(
+                    ExperimentConfig.VALUE_REPEAT_REGION_START):
                 return GeneDataLineType.GeneSegmentStart
             elif line[0] != ' ':
                 return GeneDataLineType.DNAStart
         elif part_status == GeneDataPartType.DNAPart:
-            if strip_line.startswith(VALUE_DNA_PART_END):
+            if strip_line.startswith(ExperimentConfig.VALUE_DNA_PART_END):
                 return GeneDataLineType.DNAEnd
         return GeneDataLineType.Other
