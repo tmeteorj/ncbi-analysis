@@ -5,6 +5,7 @@ import time
 import traceback
 from collections import Counter
 
+from experiment_config import ExperimentConfig
 from utils.data_download_util import DataDownloadTool
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
