@@ -261,7 +261,10 @@ class EcocycAnalysis:
         parser = EcocycHTMLParser()
         parser.feed(''.join(body))
         for k, v in parser.extract_attr.items():
-            if v is not None:
+            if k == 'map position':
+                result['gene_start_pos'] = v[0]
+                result['gene_end_pos'] = v[1]
+            elif v is not None:
                 result[k] = v.strip('__#####__')
         return parser.ecocyc_id
 
