@@ -74,13 +74,23 @@ class GeneExtract:
                         right += 1
                     dna = dna_code[left:right]
                     if not direction:
-                        result['sequence'] = dna[::-1]
+                        result['sequence'] = self.get_opposite_dna(dna[::-1])
                     else:
                         result['sequence'] = dna
                 except:
                     print(infos)
                     traceback.print_exc()
             fw.write(self.extract_output(result) + '\n')
+
+    @staticmethod
+    def get_opposite_dna(dna):
+        op_dna = ''
+        for x in dna:
+            if x == 'a': op_dna += 't'
+            if x == 't': op_dna += 'a'
+            if x == 'c': op_dna += 'g'
+            if x == 'g': op_dna += 'c'
+        return op_dna
 
     def extract_output(self, result):
         output = []
