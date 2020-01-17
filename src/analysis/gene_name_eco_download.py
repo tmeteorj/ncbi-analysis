@@ -262,8 +262,8 @@ class EcocycAnalysis:
         parser.feed(''.join(body))
         for k, v in parser.extract_attr.items():
             if k == 'map position':
-                result['gene_start_pos'] = v[0]
-                result['gene_end_pos'] = v[1]
+                result['map_start_pos'] = v[0]
+                result['map_end_pos'] = v[1]
             elif v is not None:
                 result[k] = v.strip('__#####__')
         return parser.ecocyc_id
