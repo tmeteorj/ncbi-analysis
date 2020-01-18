@@ -22,7 +22,8 @@ class EcocycHTMLParser(HTMLParser):
         self.fill_depth = -inf
 
         self.extract_attr = {'location': None, 'reaction': None, 'gene': None, 'enzyme': None, 'rna': None,
-                             'protein': None, 'polypeptide': None, 'function when intact': None, 'transporter': None}
+                             'protein': None, 'polypeptide': None, 'function when intact': None, 'transporter': None,
+                             'map position': None}
         self.ecocyc_id = None
 
     def handle_starttag(self, tag, attrs):
@@ -45,6 +46,9 @@ class EcocycHTMLParser(HTMLParser):
             self.depth -= 1
             if self.depth < self.fill_depth:
                 if self.extract_attr[self.last_td_data] != '':
+                    if self.last_td_data == 'map position':
+                        map_data = self.extract_attr[self.last_td_data]
+                        self.extract_attr[self.last_td_data] = self.extract_map_position(map_data)
                     self.fill_depth = -inf
                     self.last_td_data = None
         elif tag == 'a':
@@ -81,6 +85,18 @@ class EcocycHTMLParser(HTMLParser):
             if data.find('typeObjectPage') > 0:
                 self.ecocyc_id = self.extract_id_from_script(data)
             logger.debug("Data     :%s" % data)
+
+    @staticmethod
+    def extract_map_position(data):
+        start = data.index('[')
+        end = data.index(']')
+        data = data[start + 1:end]
+        if data.find('<-') > 0:
+            end, start = data.split('<-')
+        else:
+            start, end = data.split('->')
+        start, end = int(start.replace(',', '')), int(end.replace(',', ''))
+        return start, end
 
     @staticmethod
     def extract_gene_name(data):

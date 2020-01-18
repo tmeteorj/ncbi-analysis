@@ -2,6 +2,7 @@ import os
 import traceback
 
 from utils.gene_file_util import GeneFileReader
+from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 
 
@@ -74,7 +75,7 @@ class GeneExtract:
                         right += 1
                     dna = dna_code[left:right]
                     if not direction:
-                        result['sequence'] = dna[::-1]
+                        result['sequence'] = get_opposite_dna(dna[::-1])
                     else:
                         result['sequence'] = dna
                 except:
