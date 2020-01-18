@@ -8,7 +8,8 @@ ecocyc_params = {
     'from_gene_names': True,
     'output_best_promoter': True,
     'output_gene_sequence': True,
-    'output_detail_information': True
+    'output_detail_information': True,
+    'analysis_promoter': True
 }
 from_gene_names = True
 output_best_promoter = True

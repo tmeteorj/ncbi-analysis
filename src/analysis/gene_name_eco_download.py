@@ -18,6 +18,7 @@ class EcocycAnalysis:
         self.from_gene_names = ecocyc_params['from_gene_names']
         self.output_best_promoter = ecocyc_params['output_best_promoter']
         self.output_detail_information = ecocyc_params['output_detail_information']
+        self.analysis_promoter = ecocyc_params['analysis_promoter']
         self.sequence_start_idx = None
         self.sequence_end_idx = None
         self.cookie = cookie
@@ -40,8 +41,8 @@ class EcocycAnalysis:
         for idx, col_name in enumerate(items.strip().split('\t')):
             self.headers[col_name] = idx
             self.inv_headers.append(col_name)
-        self.sequence_start_idx = self.headers['gene_start_pos']
-        self.sequence_end_idx = self.headers['promoter_pos']
+        self.sequence_start_idx = self.headers.get('gene_start_pos')
+        self.sequence_end_idx = self.headers.get('promoter_pos')
 
     def work_from_gene_list_file(self):
         solve_cnt = 0
@@ -71,13 +72,14 @@ class EcocycAnalysis:
                 ecocyc_id = self.get_ecocyc_id(prefix='gene_', gene_name=gene_name)
                 result['ecocyc_id'] = ecocyc_id
                 self.write_body(ecocyc_id=ecocyc_id, get_summary=True)
-                flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
                 _ = self.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
-                if flag_json:
-                    self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
-                                       gene_name=result['gene'])
-                if not flag_json:
-                    fail_json_cnt += 1
+                if self.analysis_promoter:
+                    flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
+                    if flag_json:
+                        self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
+                                           gene_name=result['gene'])
+                    if not flag_json:
+                        fail_json_cnt += 1
                 if result['gene'] != gene_name:
                     result['gene'] = gene_name + '->' + result['gene']
                 fw_result.write(self.extract_output(result) + '\n')

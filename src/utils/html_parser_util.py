@@ -92,11 +92,11 @@ class EcocycHTMLParser(HTMLParser):
         end = data.index(']')
         data = data[start + 1:end]
         if data.find('<-') > 0:
-            left, right = data.split('<-')
+            end, start = data.split('<-')
         else:
-            left, right = data.split('->')
-        left, right = int(left.replace(',', '')), int(right.replace(',', ''))
-        return left, right
+            start, end = data.split('->')
+        start, end = int(start.replace(',', '')), int(end.replace(',', ''))
+        return start, end
 
     @staticmethod
     def extract_gene_name(data):
