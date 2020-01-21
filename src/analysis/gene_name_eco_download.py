@@ -41,8 +41,8 @@ class EcocycAnalysis:
         for idx, col_name in enumerate(items.strip().split('\t')):
             self.headers[col_name] = idx
             self.inv_headers.append(col_name)
-        self.sequence_start_idx = self.headers.get('gene_start_pos')
-        self.sequence_end_idx = self.headers.get('promoter_pos')
+        self.sequence_end_idx = self.headers.get('gene_start_pos')
+        self.sequence_start_idx = self.headers.get('promoter_pos')
 
     def work_from_gene_list_file(self):
         solve_cnt = 0
