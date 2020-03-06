@@ -3,13 +3,14 @@ from analysis.gene_name_eco_download import EcocycAnalysis
 from experiment_config import *
 
 extract_gene_file_name = 'NC_000913.3.txt'
-ecocyc_gene_files = ['77.txt']
+ecocyc_gene_files = ['20200306.txt']
 ecocyc_params = {
     'from_gene_names': True,
     'output_best_promoter': True,
     'output_gene_sequence': True,
     'output_detail_information': True,
-    'analysis_promoter': True
+    'analysis_promoter': True,
+    'if_get_summary': True
 }
 from_gene_names = True
 output_best_promoter = True

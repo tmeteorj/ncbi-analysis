@@ -21,7 +21,9 @@ class TestEcocycAnalysis(unittest.TestCase):
                                                   'from_gene_names': True,
                                                   'output_best_promoter': True,
                                                   'output_gene_sequence': True,
-                                                  'output_detail_information': True
+                                                  'output_detail_information': True,
+                                                  'analysis_promoter': True,
+                                                  'if_get_summary': True
                                               })
 
     def get_body(self, gene_name, prefix, suffix='.html'):
@@ -151,8 +153,8 @@ class TestEcocycAnalysis(unittest.TestCase):
             self.ecocyc_analysis.write_body(gene_name=target_gene)
             ecocyc_id = self.ecocyc_analysis.get_ecocyc_id(prefix='gene_', gene_name=target_gene)
             self.assertIsNotNone(ecocyc_id)
-            self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, get_summary=True)
-            flag_json = self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, get_summary=False)
+            self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, page_type=True)
+            flag_json = self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, page_type=False)
             self.assertTrue(flag_json)
             _ = self.ecocyc_analysis.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
             self.ecocyc_analysis.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
@@ -180,3 +182,10 @@ class TestEcocycAnalysis(unittest.TestCase):
         dec_body = gzip.decompress(body)
         dec_body = dec_body.decode('utf-8')
         print(body)
+
+    def test_summary_extract(self):
+        body = self.get_body('EG30113', 'summary_')
+        parser = EcocycHTMLParser(do_extract_summary=True)
+        parser.feed(body)
+        summary = parser.extract_attr['summary']
+        self.assertIsNotNone(summary)

@@ -19,6 +19,7 @@ class EcocycAnalysis:
         self.output_best_promoter = ecocyc_params['output_best_promoter']
         self.output_detail_information = ecocyc_params['output_detail_information']
         self.analysis_promoter = ecocyc_params['analysis_promoter']
+        self.if_get_summary = ecocyc_params['if_get_summary']
         self.sequence_start_idx = None
         self.sequence_end_idx = None
         self.cookie = cookie
@@ -71,10 +72,13 @@ class EcocycAnalysis:
                 self.write_body(gene_name=gene_name)
                 ecocyc_id = self.get_ecocyc_id(prefix='gene_', gene_name=gene_name)
                 result['ecocyc_id'] = ecocyc_id
-                self.write_body(ecocyc_id=ecocyc_id, get_summary=True)
-                _ = self.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
+                self.write_body(ecocyc_id=ecocyc_id, page_type="tu")
+                self.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
+                if self.if_get_summary:
+                    self.write_body(ecocyc_id=ecocyc_id, page_type="summary")
+                    self.analysis_xml(prefix='summary_', ecocyc_id=ecocyc_id, result=result)
                 if self.analysis_promoter:
-                    flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
+                    flag_json = self.write_body(ecocyc_id=ecocyc_id, page_type="promoter")
                     if flag_json:
                         self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
                                            gene_name=result['gene'])
@@ -146,7 +150,7 @@ class EcocycAnalysis:
                 flag_json = False
                 if ecocyc_id is not None:
                     result['ecocyc_id'] = ecocyc_id
-                    flag_json = self.write_body(ecocyc_id=ecocyc_id, get_summary=False)
+                    flag_json = self.write_body(ecocyc_id=ecocyc_id, page_type="promoter")
                     if flag_json:
                         self.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
                                            gene_name=result['gene'])
@@ -181,7 +185,7 @@ class EcocycAnalysis:
         parser.feed(body)
         return parser.ecocycs
 
-    def write_body(self, url=None, mock_name=None, ecocyc_id=None, gene_name=None, get_summary=True):
+    def write_body(self, url=None, mock_name=None, ecocyc_id=None, gene_name=None, page_type="tu"):
         if url is not None:
             urls = [url]
             origin_path = os.path.join(self.download_directory, mock_name + '.html')
@@ -193,12 +197,12 @@ class EcocycAnalysis:
             file_path = os.path.join(self.download_directory, 'gene_' + gene_name + '.html')
             self.transform_file(origin_path, file_path)
         elif ecocyc_id is not None:
-            if get_summary:
+            if page_type == "tu":
                 urls = ['https://ecocyc.org/gene?orgid=ECOLI&id=%s#tab=TU' % ecocyc_id]
                 origin_path = os.path.join(self.download_directory, ecocyc_id + '.html')
                 file_path = os.path.join(self.download_directory, 'tu_' + ecocyc_id + '.html')
                 self.transform_file(origin_path, file_path)
-            else:
+            elif page_type == "promoter":
                 urls = [
                     'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-PLOC_%s.wg' % ecocyc_id,
                     'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,
@@ -208,6 +212,10 @@ class EcocycAnalysis:
                 origin_path = os.path.join(self.download_directory, ecocyc_id + '.json')
                 file_path = os.path.join(self.download_directory, 'promoter_' + ecocyc_id + '.json')
                 self.transform_file(origin_path, file_path)
+            elif page_type == "summary":
+                urls = ['https://biocyc.org/gene-tab?id=%s&orgid=ECOLI&tab=SUMMARY' % ecocyc_id]
+                file_path = os.path.join(self.download_directory, 'summary_' + ecocyc_id + '.html')
+
         else:
             raise ValueError('Parameter not correct')
         if os.path.exists(file_path):
@@ -260,15 +268,20 @@ class EcocycAnalysis:
         xml_path = os.path.join(self.download_directory, prefix + ecocyc_id + '.html')
         with open(xml_path, 'r', encoding='utf8') as fr:
             body = ''.join(fr.readlines())
-        parser = EcocycHTMLParser()
-        parser.feed(''.join(body))
-        for k, v in parser.extract_attr.items():
-            if k == 'map position':
-                result['map_start_pos'] = v[0]
-                result['map_end_pos'] = v[1]
-            elif v is not None:
-                result[k] = v.strip('__#####__')
-        return parser.ecocyc_id
+        if prefix == 'summary_':
+            parser = EcocycHTMLParser(do_extract_summary=True)
+            parser.feed(''.join(body))
+            result['summary'] = parser.extract_attr['summary']
+        else:
+            parser = EcocycHTMLParser()
+            parser.feed(''.join(body))
+            for k, v in parser.extract_attr.items():
+                if k == 'map position':
+                    result['map_start_pos'] = v[0]
+                    result['map_end_pos'] = v[1]
+                elif v is not None:
+                    result[k] = v.strip('__#####__')
+            return parser.ecocyc_id
 
     def analysis_json(self, prefix, ecocyc_id, result, gene_name=None):
         json_path = os.path.join(self.download_directory, prefix + ecocyc_id + '.json')
