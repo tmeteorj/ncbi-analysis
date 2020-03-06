@@ -10,21 +10,23 @@ inf = 1000000
 
 
 class EcocycHTMLParser(HTMLParser):
-    def __init__(self, do_extract_id=False, gene_name=None):
+    def __init__(self, do_extract_id=False, gene_name=None, do_extract_summary=False):
         super(EcocycHTMLParser, self).__init__()
         self.last_td_data = None
         self.last_ecocyc_id = None
         self.last_a_data = None
 
         self.do_extract_id = do_extract_id
+        self.do_extract_summary = do_extract_summary
         self.gene_name = gene_name
         self.depth = 0
         self.fill_depth = -inf
 
         self.extract_attr = {'location': None, 'reaction': None, 'gene': None, 'enzyme': None, 'rna': None,
                              'protein': None, 'polypeptide': None, 'function when intact': None, 'transporter': None,
-                             'map position': None}
+                             'map position': None, 'summary': None}
         self.ecocyc_id = None
+        self.summary_extract_step = 'not_start'
 
     def handle_starttag(self, tag, attrs):
         if tag == 'a':
@@ -40,6 +42,10 @@ class EcocycHTMLParser(HTMLParser):
                     href = attr[1]
             if href is not None and href.startswith('/gene?orgid=ECOLI&id='):
                 self.last_ecocyc_id = self.extract_id_from_data(href)
+        if tag == 'p' and self.do_extract_summary and self.summary_extract_step == 'start':
+            for attr in attrs:
+                if attr[0] == 'class' and attr[1] == 'ecoparagraph':
+                    self.summary_extract_step = 'end'
 
     def handle_endtag(self, tag):
         if tag == 'td':
@@ -69,7 +75,13 @@ class EcocycHTMLParser(HTMLParser):
             self.last_a_data += data
         if data == 'Locations' or data == 'Reactions':
             data = data[:-1]
-        if self.do_extract_id:
+        if self.do_extract_summary:
+            if self.summary_extract_step == 'not_start' and data == 'Summary' and self.lasttag == 'h3':
+                self.extract_attr['summary'] = ''
+                self.summary_extract_step = 'start'
+            elif self.summary_extract_step == 'start':
+                self.extract_attr['summary'] += data
+        elif self.do_extract_id:
             if self.lasttag == 'script' and data.startswith(ecocyc_id_script_prefix):
                 data = data[len(ecocyc_id_script_prefix):]
                 self.ecocyc_id = self.extract_id_from_data(data)
