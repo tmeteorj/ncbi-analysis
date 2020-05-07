@@ -8,9 +8,16 @@ class DataDownloadTool:
 
     @staticmethod
     def format_data(line):
-        key, inter = line[1:].strip().split('/')
+        data = line
+        items = line.rstrip().split('\t')
+        if len(items) == 2:
+            additional_info = items[1]
+            data = items[0]
+        else:
+            additional_info = ''
+        key, inter = data[1:].strip().split('/')
         inter = list(map(int, inter.split('-')))
-        return key, inter
+        return key, inter, additional_info
 
     @staticmethod
     def get_response(key):
@@ -69,4 +76,3 @@ class DataDownloadTool:
             except:
                 traceback.print_exc()
         return flag
-

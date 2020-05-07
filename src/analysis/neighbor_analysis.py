@@ -9,6 +9,7 @@ from experiment_config import ExperimentConfig
 from utils.data_download_util import DataDownloadTool
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
+from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 
 
@@ -56,7 +57,7 @@ class NeighborAnalysis:
             solve_cnt, total_cnt)
         fe = open(self.error_result_path_prefix + ".iter-%d.txt" % iteration_time, 'w')
         fail_datas = []
-        for key, inter in datas:
+        for key, inter, additional in datas:
             solve_cnt += 1
             file_path = os.path.join(self.download_directory, key + '.txt')
             flag, data = self.download_and_analysis(key, inter, file_path)
@@ -64,9 +65,14 @@ class NeighborAnalysis:
                 success_cnt += 1
                 direction = '+' if (inter[0] < inter[1]) else '-'
                 fw.write('>%s/%s-%s(%s)\n' % (key, inter[0], inter[1], direction))
+                if additional != '':
+                    for kv in additional.split(','):
+                        k, v = kv.split('=')
+                        fw.write('%s\t%s\n' % (k, v))
                 fw.write('SOURCE\t%s\n' % (data.get('source', 'UNKNOWN')))
                 for elem in data['data']:
                     fw.write('%s\n' % elem)
+                fw.write('sequence\t%s\n' % (data.get('sequence', '')))
                 fw.write('\n')
                 fw.flush()
             else:
@@ -93,9 +99,12 @@ class NeighborAnalysis:
         source = self.get_prefix(source)
         target = None
         for line in buff[2:]:
-            gene = self.read_gene(line)
-            if self.check_gene(left, right, direction, gene, target):
-                target = gene
+            try:
+                gene = self.read_gene(line)
+                if self.check_gene(left, right, direction, gene, target):
+                    target = gene
+            except:
+                continue
         return {
             'name': name,
             'direction': direction,
@@ -151,9 +160,9 @@ class NeighborAnalysis:
             unsolved_datas = list(unsolved_datas)
         for iteration_time in range(1, ExperimentConfig.MAX_ITERATION_TIME + 1):
             unsolved_datas = self.find_neighbor_batch(unsolved_datas, iteration_time)
-            if len(unsolved_datas) ==0:
+            if len(unsolved_datas) == 0:
                 break
-        print("Failed data:"+len(unsolved_datas)+","+str(unsolved_datas))
+        print("Failed data:" + str(len(unsolved_datas)) + "," + str(unsolved_datas))
         self.source_gene_distribution_analysis()
 
     @staticmethod
@@ -181,7 +190,10 @@ class NeighborAnalysis:
             res_set.add(near_small)
         if near_big:
             res_set.add(near_big)
-        return True, {'source': gene_info.source, 'data': list(res_set)}
+        sequence = gene_info.dna_code[left - 1:right]
+        if inter[0] > inter[1]:
+            sequence = get_opposite_dna(sequence[::-1])
+        return True, {'source': gene_info.source, 'data': list(res_set), 'sequence': sequence}
 
     @staticmethod
     def check_gene(left, right, direction, gene, target):
