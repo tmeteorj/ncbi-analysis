@@ -10,5 +10,5 @@ class TestSimilarityMatch(unittest.TestCase):
         offset_test = count_similarity('text_distance', 100, 'ACGTACG', 'GCTACGACGT', 3)
         self.assertEqual(text_distance_similarity, offset_test)
 
-        match_similarity = count_similarity('', 100, 'ACGTACG', 'ACGACGT', 0)
+        match_similarity = count_similarity('char_match', 100, 'ACGTACG', 'ACGACGT', 0)
         self.assertEqual(42, match_similarity)
