@@ -26,6 +26,7 @@ class ExperimentConfig:
     SET_NUMBER_RANGE10 = set(map(str, range(10)))
 
     MAX_ITERATION_TIME = 100
+    MAX_THREAD_NUM = 16
 
     root_directory = os.sep.join(os.getcwd().split(os.sep)[:-1])
     data_directory = os.path.join(root_directory, 'data', 'rna_analysis')
