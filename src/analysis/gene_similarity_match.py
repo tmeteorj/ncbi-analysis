@@ -1,5 +1,6 @@
 import heapq
 import os
+import re
 import threading
 
 from utils.factories.logger_factory import LoggerFactory
@@ -40,19 +41,26 @@ class GeneSimilarityMatch:
                     self.solved, self.total, self.solved * 100.0 / self.total), self.solved, self.total)
             ts = []
             for gene_sequence in gene_sequences:
-                name, gene = gene_sequence.strip().split('\t')
-                t = threading.Thread(target=self.find_candidate_for_gene, args=(name, gene, fw,))
+                items = gene_sequence.strip().split('\t')
+                name, gene = items[0], items[1].lower()
+                pat = None if len(items) == 2 else items[2].lower()
+                t = threading.Thread(target=self.find_candidate_for_gene, args=(name, gene, pat, fw,))
                 t.start()
                 ts.append(t)
             for t in ts:
                 t.join()
 
-    def find_candidate_for_gene(self, name, gene, fw):
-        gene = gene.strip().lower()
-        candidates = []
-        cut_same = self.match_gene(gene, self.gene_reader.dna_code, False, candidates, 0)
+    def find_candidate_for_gene(self, name, gene, pat, fw):
+        candidates = [[], []]
+        t1 = threading.Thread(target=self.match_gene,
+                              args=(gene, self.gene_reader.dna_code, False, candidates[0], 0, pat,))
+        t1.start()
         rev_dna_code = get_opposite_dna(self.gene_reader.dna_code[::-1])
-        self.match_gene(gene, rev_dna_code, True, candidates, cut_same)
+        t2 = threading.Thread(target=self.match_gene, args=(gene, rev_dna_code, True, candidates[1], 0, pat,))
+        t2.start()
+        t1.join()
+        t2.join()
+        candidates = candidates[0] + candidates[1]
         candidates.sort(key=lambda arg: -arg.similarity)
         self.lock.acquire()
         for candidate in candidates[:self.top_k]:
@@ -66,7 +74,7 @@ class GeneSimilarityMatch:
             ))
         self.lock.release()
 
-    def match_gene(self, gene, database, is_reverse, candidates, cut_same):
+    def match_gene(self, gene, database, is_reverse, candidates, cut_same, pat):
         gene_length = len(gene)
         database_length = len(database)
         limitation = database_length - gene_length + 1
@@ -74,8 +82,8 @@ class GeneSimilarityMatch:
         similarity_heap = []
         gene_dict = count_acgt(gene)
         for start in range(limitation):
-            # if fast_skip(gene_dict, gene_length, database, start, cut_same):
-            #    continue
+            if fast_skip(gene_dict, gene_length, database, start, cut_same, pat):
+                continue
             similarity = count_similarity(self.match_algorithm, self.precision, gene, database, start)
             new_solved += 1
             if (start + 1) % 10000 == 0:
@@ -102,7 +110,10 @@ class GeneSimilarityMatch:
         return cut_same
 
 
-def fast_skip(gene_dict, gene_length, database, offset, cut_same):
+def fast_skip(gene_dict, gene_length, database, offset, cut_same, pat):
+    if pat is not None:
+        if not re.match(pat, database[offset:offset + gene_length]):
+            return True
     gene_dict_database = count_acgt(database[offset:offset + gene_length])
     same_count = 0
     for x, cnt in gene_dict.items():
