@@ -7,11 +7,12 @@ from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
 from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
+from collections import deque
 
 
 class GeneSimilarityMatch:
     def __init__(self, gene_path, data_path, output_directory, top_k=20, precision=1000,
-                 match_algorithm='text_distance'):
+                 match_algorithm='text_distance', candidate_distance=5):
         self.data_path = data_path
         self.output_directory = output_directory
         self.data_name = os.path.basename(data_path)
@@ -24,6 +25,7 @@ class GeneSimilarityMatch:
         self.top_k = top_k
         self.precision = precision
         self.match_algorithm = match_algorithm
+        self.candidate_distance = candidate_distance
         self.logger = LoggerFactory()
 
         self.lock = threading.Lock()
@@ -81,6 +83,7 @@ class GeneSimilarityMatch:
         new_solved = 0
         similarity_heap = []
         gene_dict = count_acgt(gene)
+        buff = deque()
         for start in range(limitation):
             if fast_skip(gene_dict, gene_length, database, start, cut_same, pat):
                 continue
@@ -102,12 +105,32 @@ class GeneSimilarityMatch:
                 cut_same = max(cut_same, int(top / self.precision * gene_length) - 1)
                 if top > similarity:
                     continue
-            candidates.append(MatchCandidate(start, start + gene_length - 1, is_reverse, database,
-                                             similarity * 100.0 / self.precision))
+            update_candidate_list(MatchCandidate(start, start + gene_length - 1, is_reverse, database,
+                                                 similarity * 100.0 / self.precision),
+                                  buff,
+                                  candidates,
+                                  self.candidate_distance)
+        while len(buff) > 0:
+            update_candidate_list(None, buff, candidates, 0)
         self.lock.acquire()
         self.solved += new_solved + gene_length - 1
         self.lock.release()
         return cut_same
+
+
+def update_candidate_list(new_candidate, buff: deque, candidate_result: list,
+                          keep_size: int):
+    if len(buff) >= keep_size:
+        old_candidate = buff.popleft()
+        if not old_candidate.should_ignore:
+            candidate_result.append(old_candidate)
+    if new_candidate is not None:
+        for candidate in buff:
+            if candidate.similarity > new_candidate.similarity:
+                new_candidate.should_ignore = True
+            elif candidate.similarity < new_candidate.similarity:
+                candidate.should_ignore = True
+        buff.append(new_candidate)
 
 
 def fast_skip(gene_dict, gene_length, database, offset, cut_same, pat):
@@ -137,30 +160,6 @@ def count_acgt(gene):
 def count_similarity(match_algorithm, scalar, gene, database, offset):
     tot = len(gene)
     if match_algorithm == 'text_distance':
-        """
-        dp = {0: {0: 0}}
-        least = {0: 1}
-        queue = deque()
-        queue.append((0, 0, 0))
-        while len(queue) > 0:
-            i, j, step = queue.popleft()
-            if step > cut_step:
-                return 0
-            least_pos = i * 1000 + j
-            if dp[i][j] == step:
-                if least.get(least_pos, 10000) > step:
-                    least[least_pos] = step
-                else:
-                    continue
-                if i < tot and update_or_add_min_val(dp, i + 1, j, step + 1):
-                    queue.append((i + 1, j, step + 1))
-                if j < tot and update_or_add_min_val(dp, i, j + 1, step + 1):
-                    queue.append((i, j + 1, step + 1))
-                if i < tot and j < tot and update_or_add_min_val(dp, i + 1, j + 1,
-                                                                 step + (0 if gene[i] == database[j + offset] else 1)):
-                    queue.append((i + 1, j + 1, step + (0 if gene[i] == database[j + offset] else 1)))
-        score = tot - dp[tot][tot]
-        """
         dp = [[99999 for _ in range(tot + 1)] for _ in range(tot + 1)]
         dp[0][0] = 0
         for i in range(1, tot + 1):
@@ -199,3 +198,4 @@ class MatchCandidate:
             self.start = left + 1
             self.end = right + 1
         self.similarity = similarity
+        self.should_ignore = False
