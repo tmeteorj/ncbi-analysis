@@ -11,6 +11,7 @@ match_algorithm = 'text_distance'
 candidate_distance = 5
 top_k = 30
 batch_size = 2
+min_similarity = 0.5
 
 if __name__ == '__main__':
     for gene_match_name in gene_match_names:
@@ -20,7 +21,8 @@ if __name__ == '__main__':
                                                top_k=top_k,
                                                match_algorithm=match_algorithm,
                                                candidate_distance=candidate_distance,
-                                               batch_size=batch_size)
+                                               batch_size=batch_size,
+                                               min_similarity=min_similarity)
         similarity_match.run()
 
         neighbor_analysis = NeighborAnalysis(similarity_match.result_path, ExperimentConfig.rna_download_directory,
