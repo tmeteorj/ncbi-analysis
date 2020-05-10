@@ -130,7 +130,7 @@ class GeneSimilarityMatch:
                     top = similarity_heap[0]
                     min_same = max(min_same, int(top / self.precision * gene_length) - 1)
         while len(buff) > 0:
-            update_candidate_list(None, buff, candidates, 0)
+            update_candidate_list(None, buff, candidates, 1)
         self.lock.acquire()
         self.solved += new_solved + gene_length - 1
         self.lock.release()
