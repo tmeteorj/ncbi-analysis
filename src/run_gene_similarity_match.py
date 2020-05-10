@@ -9,9 +9,9 @@ data_name = 'NC_000913.3.txt'
 match_algorithm = 'text_distance'
 # match_algorithm = 'char_match'
 candidate_distance = 5
-top_k = 30
+top_k = 50
 batch_size = 2
-min_similarity = 0.5
+min_similarity = 0.50
 
 if __name__ == '__main__':
     for gene_match_name in gene_match_names:
