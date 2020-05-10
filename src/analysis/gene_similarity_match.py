@@ -2,6 +2,7 @@ import heapq
 import os
 import re
 import threading
+import time
 
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
@@ -12,7 +13,7 @@ from collections import deque
 
 class GeneSimilarityMatch:
     def __init__(self, gene_path, data_path, output_directory, top_k=20, precision=1000,
-                 match_algorithm='text_distance', candidate_distance=5):
+                 match_algorithm='text_distance', candidate_distance=5, batch_size=5):
         self.data_path = data_path
         self.output_directory = output_directory
         self.data_name = os.path.basename(data_path)
@@ -26,6 +27,7 @@ class GeneSimilarityMatch:
         self.precision = precision
         self.match_algorithm = match_algorithm
         self.candidate_distance = candidate_distance
+        self.batch_size = batch_size
         self.logger = LoggerFactory()
 
         self.lock = threading.Lock()
@@ -41,24 +43,31 @@ class GeneSimilarityMatch:
             self.logger.info_with_expire_time(
                 'Doing Similarity Matching: %d/%d(%.2f%%)' % (
                     self.solved, self.total, self.solved * 100.0 / self.total), self.solved, self.total)
-            ts = []
+            pending_tasks = deque()
+            running_tasks = []
             for gene_sequence in gene_sequences:
                 items = gene_sequence.strip().split('\t')
                 name, gene = items[0], items[1].lower()
                 pat = None if len(items) == 2 else items[2].lower()
                 t = threading.Thread(target=self.find_candidate_for_gene, args=(name, gene, pat, fw,))
-                t.start()
-                ts.append(t)
-            for t in ts:
+                pending_tasks.append(t)
+            while len(pending_tasks) > 0:
+                running_tasks = [t for t in running_tasks if t.isAlive()]
+                while len(running_tasks) < self.batch_size and len(pending_tasks) > 0:
+                    t = pending_tasks.popleft()
+                    t.start()
+                    running_tasks.append(t)
+                time.sleep(60)
+            for t in running_tasks:
                 t.join()
 
     def find_candidate_for_gene(self, name, gene, pat, fw):
         candidates = [[], []]
         t1 = threading.Thread(target=self.match_gene,
-                              args=(gene, self.gene_reader.dna_code, False, candidates[0], 0, pat,))
+                              args=(name, gene, self.gene_reader.dna_code, False, candidates[0], 0, pat,))
         t1.start()
         rev_dna_code = get_opposite_dna(self.gene_reader.dna_code[::-1])
-        t2 = threading.Thread(target=self.match_gene, args=(gene, rev_dna_code, True, candidates[1], 0, pat,))
+        t2 = threading.Thread(target=self.match_gene, args=(name, gene, rev_dna_code, True, candidates[1], 0, pat,))
         t2.start()
         t1.join()
         t2.join()
@@ -76,54 +85,66 @@ class GeneSimilarityMatch:
             ))
         self.lock.release()
 
-    def match_gene(self, gene, database, is_reverse, candidates, cut_same, pat):
+    def match_gene(self, name, gene, database, is_reverse, candidates, min_same, pat):
         gene_length = len(gene)
         database_length = len(database)
         limitation = database_length - gene_length + 1
         new_solved = 0
         similarity_heap = []
-        gene_dict = count_acgt(gene)
+        # gene_dict = count_acgt(gene)
         buff = deque()
         for start in range(limitation):
-            if fast_skip(gene_dict, gene_length, database, start, cut_same, pat):
-                continue
-            similarity = count_similarity(self.match_algorithm, self.precision, gene, database, start)
+            # if fast_skip(gene_dict, gene_length, database, start, min_same, pat):
+            #    continue
+            similarity = count_similarity(self.match_algorithm, self.precision, gene, database, start, min_same)
             new_solved += 1
             if (start + 1) % 10000 == 0:
                 self.lock.acquire()
                 self.solved += new_solved
                 self.logger.info_with_expire_time(
-                    'Doing Similarity Matching: %d/%d(%.2f%%)' % (
-                        self.solved, self.total, self.solved * 100.0 / self.total), self.solved,
+                    'Doing Similarity Matching for %s[%s]: %d/%d(%.2f%%) --top_k=%d --min_similarity= %.2f%% --min_same=%d --gene_length=%d' % (
+                        name,
+                        '-' if is_reverse else '+',
+                        self.solved,
+                        self.total,
+                        self.solved * 100.0 / self.total,
+                        self.top_k,
+                        similarity_heap[0] * 100.0 / self.precision,
+                        min_same,
+                        gene_length
+                    ),
+                    self.solved,
                     self.total)
                 self.lock.release()
                 new_solved = 0
-            heapq.heappush(similarity_heap, similarity)
-            if len(similarity_heap) > self.top_k:
-                heapq.heappop(similarity_heap)
-                top = similarity_heap[0]
-                cut_same = max(cut_same, int(top / self.precision * gene_length) - 1)
-                if top > similarity:
-                    continue
-            update_candidate_list(MatchCandidate(start, start + gene_length - 1, is_reverse, database,
-                                                 similarity * 100.0 / self.precision),
-                                  buff,
-                                  candidates,
-                                  self.candidate_distance)
+            new_candidate = MatchCandidate(start, start + gene_length - 1, is_reverse, database,
+                                           similarity * 100.0 / self.precision)
+            added_flag = update_candidate_list(new_candidate,
+                                               buff,
+                                               candidates,
+                                               self.candidate_distance)
+            if added_flag:
+                heapq.heappush(similarity_heap, candidates[-1].similarity)
+                if len(similarity_heap) > self.top_k:
+                    heapq.heappop(similarity_heap)
+                    top = similarity_heap[0]
+                    min_same = max(min_same, int(top / self.precision * gene_length) - 1)
         while len(buff) > 0:
             update_candidate_list(None, buff, candidates, 0)
         self.lock.acquire()
         self.solved += new_solved + gene_length - 1
         self.lock.release()
-        return cut_same
+        return min_same
 
 
 def update_candidate_list(new_candidate, buff: deque, candidate_result: list,
                           keep_size: int):
+    added = False
     if len(buff) >= keep_size:
         old_candidate = buff.popleft()
-        if not old_candidate.should_ignore:
+        if not old_candidate.should_ignore and old_candidate.similarity > 0:
             candidate_result.append(old_candidate)
+            added = True
     if new_candidate is not None:
         for candidate in buff:
             if candidate.similarity > new_candidate.similarity:
@@ -131,6 +152,7 @@ def update_candidate_list(new_candidate, buff: deque, candidate_result: list,
             elif candidate.similarity < new_candidate.similarity:
                 candidate.should_ignore = True
         buff.append(new_candidate)
+    return added
 
 
 def fast_skip(gene_dict, gene_length, database, offset, cut_same, pat):
@@ -157,16 +179,21 @@ def count_acgt(gene):
     return gene_dict
 
 
-def count_similarity(match_algorithm, scalar, gene, database, offset):
+def count_similarity(match_algorithm, scalar, gene, database, offset, min_same):
     tot = len(gene)
     if match_algorithm == 'text_distance':
+        max_step = tot - min_same
         dp = [[99999 for _ in range(tot + 1)] for _ in range(tot + 1)]
         dp[0][0] = 0
         for i in range(1, tot + 1):
             gene_a = gene[i - 1]
+            min_step = 1000000
             for j in range(1, tot + 1):
                 gene_b = database[j - 1 + offset]
                 dp[i][j] = min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (0 if gene_a == gene_b else 1))
+                min_step = min(dp[i][j] + abs(i - j), min_step)
+            if min_step >= max_step:
+                return -1
         score = tot - dp[tot][tot]
     else:
         score = 0.0
