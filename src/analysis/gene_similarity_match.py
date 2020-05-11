@@ -80,7 +80,9 @@ class GeneSimilarityMatch:
         candidates.sort(key=lambda arg: -arg.similarity)
         results = self.render_similarity_for_candidates(gene, candidates[:self.top_k])
         self.lock.acquire()
+        idx = 1
         for candidate, sequence_gene, sequence_target, sequence in results:
+            fw.write('(%d)\n' % idx)
             fw.write('>%s/%s-%s\tname=%s,similarity=%.2f%%,direction=%s\n' % (
                 self.data_name.replace(".txt", ''),
                 candidate.start,
@@ -94,6 +96,7 @@ class GeneSimilarityMatch:
             fw.write('target_format : %s\n' % sequence_target)
             fw.write('match_format  : %s\n' % sequence)
             fw.write('\n')
+            idx += 1
         self.lock.release()
 
     def match_gene(self, name, gene, database, is_reverse, candidates, pat):
@@ -176,10 +179,10 @@ def render_dna_sequence(gene, database, offset, dp):
     i, j = tot, tot
     while i > 0 or j > 0:
         gene_a, gene_b = gene[i - 1] if i > 0 else '.', database[j + offset - 1] if j > 0 else '.'
-        if dp[i][j] == dp[i - 1][j - 1] + should_change(gene[i - 1], database[j + offset - 1]):
+        if i > 0 and j > 0 and dp[i][j] == dp[i - 1][j - 1] + should_change(gene[i - 1], database[j + offset - 1]):
             sequence_gene.append(gene_a)
             sequence_target.append(gene_b)
-            sequence.append('*')
+            sequence.append('*' if should_change(gene[i - 1], database[j + offset - 1]) == 0 else '.')
             i, j = i - 1, j - 1
         elif dp[i][j] == dp[i - 1][j] + 1:
             sequence_gene.append(gene_a)
