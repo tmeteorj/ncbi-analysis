@@ -274,7 +274,7 @@ def count_similarity(match_algorithm, scalar, gene, database, offset, min_same, 
 def should_change(a, b):
     if a == b:
         return 0
-    elif a in 'ct' and b in 'ct':
+    elif a == 'c' and b == 't':
         return 0
     return 1
 
