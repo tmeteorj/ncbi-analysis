@@ -4,14 +4,15 @@ from analysis.gene_similarity_match import GeneSimilarityMatch
 from analysis.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 
-gene_match_names = ['agrB.txt']
+gene_match_names = ['dinQ_sense.txt']
 data_name = 'NC_000913.3.txt'
-match_algorithm = 'text_distance'
+# match_algorithm = 'text_distance'
 # match_algorithm = 'char_match'
+match_algorithm = 'consistency'
 candidate_distance = 5
-top_k = 50
+top_k = 500
 batch_size = 2
-min_similarity = 0.50
+min_similarity = 0.01
 
 if __name__ == '__main__':
     for gene_match_name in gene_match_names:
