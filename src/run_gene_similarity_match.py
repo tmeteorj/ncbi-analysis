@@ -4,7 +4,7 @@ from analysis.gene_similarity_match import GeneSimilarityMatch
 from analysis.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 
-gene_match_names = ['dinQ_sense.txt']
+gene_match_names = ['dsrA_antisense.txt']
 data_name = 'NC_000913.3.txt'
 # match_algorithm = 'text_distance'
 # match_algorithm = 'char_match'
