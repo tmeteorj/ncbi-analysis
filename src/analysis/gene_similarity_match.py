@@ -81,6 +81,8 @@ class GeneSimilarityMatch:
         results = self.render_similarity_for_candidates(gene, candidates[:self.top_k])
         self.lock.acquire()
         idx = 1
+        headers = ['name', 'direction', 'similarity', 'consistency', 'original', 'gene_format', 'target_format',
+                   'match_format']
         for candidate, sequence_gene, sequence_target, sequence in results:
             fw.write('(%d)\n' % idx)
             attribute = {
@@ -92,18 +94,16 @@ class GeneSimilarityMatch:
                 attribute['consistency'] = '%d' % (candidate.similarity // self.scalar)
             else:
                 attribute['similarity'] = '%.2f%%' % candidate.similarity
+            for key, value in zip(['origin', 'gene_format', 'target_format', 'match_format'],
+                                  [gene, sequence_gene, sequence_target, sequence]):
+                attribute[key] = value
 
             fw.write('>%s/%s-%s\t%s\n' % (
                 self.data_name.replace(".txt", ''),
                 candidate.start,
                 candidate.end,
-                ','.join(['%s=%s' % (key, value) for key, value in attribute.items()])
+                ','.join(['%s=%s' % (key, attribute[key]) for key in headers if key in attribute])
             ))
-
-            fw.write('original      : %s\n' % gene)
-            fw.write('gene_format   : %s\n' % sequence_gene)
-            fw.write('target_format : %s\n' % sequence_target)
-            fw.write('match_format  : %s\n' % sequence)
             fw.write('\n')
             idx += 1
         self.lock.release()
