@@ -1,26 +1,23 @@
-import os
-
-
 class EcocycDataLoader:
     def __init__(self, ecocyc_data_file):
         self.ecocyc_data_file = ecocyc_data_file
         self.records = []
         self.inter_records = []
         self.rev_inter_records = []
+        self.headers = None
+        self.inv_headers = []
 
     def build_database(self):
-        headers = None
-        inv_headers = []
         for line in open(self.ecocyc_data_file):
             items = line.rstrip('\r\n').split('\t')
             if len(items) == 0:
                 continue
-            if headers is None:
+            if self.headers is None:
                 for idx, header in enumerate(items):
-                    headers[header] = idx
-                    inv_headers.append(header)
+                    self.headers[header] = idx
+                    self.inv_headers.append(header)
                 continue
-            attr = {header: value for header, value in zip(inv_headers, items)}
+            attr = {header: value for header, value in zip(self.inv_headers, items)}
             record = EcocycRecord(attr)
             direction, inter_records = record.generate_inter_record()
             self.records.append(record)
@@ -30,6 +27,21 @@ class EcocycDataLoader:
                 self.rev_inter_records.extend(inter_records)
         self.inter_records.sort(lambda arg: arg.start)
         self.inv_inter_records.sort(lambda arg: arg.start)
+
+    def find_first_le(self, pos):
+        idx, rev_idx = binary_search_first_le(self.inter_records, 0, len(self.inter_records) - 1,
+                                              pos), binary_search_first_le(self.rev_inter_records, 0,
+                                                                           len(self.rev_inter_records) - 1, pos)
+        return idx, rev_idx
+
+
+def binary_search_first_le(arr, left, right, value):
+    while left < right:
+        mid = (left + right) // 2
+        if arr[mid].start >= value:
+            right = mid
+        elif arr[mid].start < value:
+            left = mid + 1
 
 
 class EcocycRecord:
@@ -69,3 +81,6 @@ class EcocycInterRecord:
         self.end = end
         self.direction = '>' if start < end else '<'
         self.is_gene = is_gene
+
+        self.left = min(self.start, self.end)
+        self.right = max(self.start, self.end)
