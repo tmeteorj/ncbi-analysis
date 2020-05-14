@@ -71,7 +71,7 @@ class GeneLocationAnalysis:
                 if record.direction == '>':
                     intersect_status = '5\''
                 else:
-                    intersect_status == '3\''
+                    intersect_status = '3\''
             elif status in [IntervalPositionStatus.IntersectRight, IntervalPositionStatus.CoverRight]:
                 if record.direction == '>':
                     intersect_status = '3\''
@@ -89,6 +89,8 @@ class GeneLocationAnalysis:
                 intersect_status = 'inter-genic'
                 if left_neareast_record is None or left_neareast_record.right < record.right:
                     left_neareast_record = record
+            else:
+                raise ValueError('status not correct')
 
             if intersect_status != 'inter-genic':
                 result.append(self.render_location_result(intersect_status, record, left, right))
@@ -139,7 +141,7 @@ class GeneLocationAnalysis:
         }
         primary_info, match_info = buff[0].split('\t')
         file_info, inter_info = primary_info.split('/')
-        end, start = inter_info.split('-')
+        start, end = inter_info.split('-')
         data['start'] = int(start)
         data['end'] = int(end)
         data['header'] = '%s/%s-%s' % (file_info, start, end)
