@@ -3,7 +3,6 @@ class EcocycDataLoader:
         self.ecocyc_data_file = ecocyc_data_file
         self.records = []
         self.inter_records = []
-        self.rev_inter_records = []
         self.headers = None
         self.inv_headers = []
 
@@ -13,6 +12,7 @@ class EcocycDataLoader:
             if len(items) == 0:
                 continue
             if self.headers is None:
+                self.headers = {}
                 for idx, header in enumerate(items):
                     self.headers[header] = idx
                     self.inv_headers.append(header)
@@ -21,18 +21,14 @@ class EcocycDataLoader:
             record = EcocycRecord(attr)
             direction, inter_records = record.generate_inter_record()
             self.records.append(record)
-            if direction == '>':
-                self.inter_records.extend(inter_records)
-            else:
-                self.rev_inter_records.extend(inter_records)
-        self.inter_records.sort(lambda arg: arg.start)
-        self.inv_inter_records.sort(lambda arg: arg.start)
+            self.inter_records.extend(inter_records)
+        self.inter_records.sort(key=lambda arg: arg.start)
 
     def find_first_le(self, pos):
-        idx, rev_idx = binary_search_first_le(self.inter_records, 0, len(self.inter_records) - 1,
-                                              pos), binary_search_first_le(self.rev_inter_records, 0,
-                                                                           len(self.rev_inter_records) - 1, pos)
-        return idx, rev_idx
+        return binary_search_first_le(self.inter_records,
+                                      0,
+                                      len(self.inter_records) - 1,
+                                      pos)
 
 
 def binary_search_first_le(arr, left, right, value):
@@ -42,6 +38,7 @@ def binary_search_first_le(arr, left, right, value):
             right = mid
         elif arr[mid].start < value:
             left = mid + 1
+    return left
 
 
 class EcocycRecord:
@@ -49,7 +46,10 @@ class EcocycRecord:
         for header in ['gene', 'product', 'promoter_name', 'promoter_pos', 'gene_start_pos', 'map_start_pos',
                        'map_end_pos']:
             if header.endswith('pos'):
-                setattr(self, header, int(attr.get(header, -1)))
+                value = attr.get(header, -1)
+                if value == '':
+                    value = -1
+                setattr(self, header, int(value))
             else:
                 setattr(self, header, attr.get(header, ''))
 
