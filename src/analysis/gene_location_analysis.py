@@ -47,6 +47,7 @@ class GeneLocationAnalysis:
                     fw.write(line + '\n')
                 for location_info in data['location_result']:
                     fw.write(location_info + '\n')
+                fw.write('\n')
 
     def process_one_data(self, data):
         start, end = data['start'], data['end']

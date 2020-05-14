@@ -7,7 +7,7 @@ class EcocycDataLoader:
         self.inv_headers = []
 
     def build_database(self):
-        for line in open(self.ecocyc_data_file):
+        for line in open(self.ecocyc_data_file, 'r', encoding='utf8'):
             items = line.rstrip('\r\n').split('\t')
             if len(items) == 0:
                 continue
