@@ -145,7 +145,15 @@ class GeneLocationAnalysis:
         data['start'] = int(start)
         data['end'] = int(end)
         data['header'] = '%s/%s-%s' % (file_info, start, end)
-        data['match_info'] = re.sub(r'direction=(\+|\-),', '', match_info)
+        match_info = re.sub(r'direction=(\+|\-),', '', match_info).split(',')
+        match_info = [kv.split('=') for kv in match_info]
+        output = []
+        for k, v in match_info:
+            if k.find(':') >= 0:
+                output.append(k + v)
+            else:
+                output.append(k + '\t' + v)
+        data['match_info'] = '\n'.join(output)
         data['direction'] = ('>' if start < end else '<') * 10
         data['location_result'] = []
         return data
