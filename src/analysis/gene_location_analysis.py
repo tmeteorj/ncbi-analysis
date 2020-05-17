@@ -317,6 +317,8 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
         data['location'] = 'antisense' if direction_matched == direction else 'sense'
         if location_type == '5\'' or location_type == '3\'':
             data['location'] += ' ' + location_type + 'utr'
+        else:
+            data['location'] += ' ' + location_type
         data['gene_name'] = genes
         record = ecocyc_data_loader.get_target_gene(genes.strip())
         if record is None:
