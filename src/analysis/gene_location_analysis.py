@@ -1,5 +1,6 @@
 import os
 import re
+from copy import deepcopy
 from enum import Enum
 
 from src.utils.ecocyc_data_loader import EcocycDataLoader, EcocycInterRecord
@@ -18,6 +19,8 @@ class GeneLocationAnalysis:
         file_prefix = StrConverter.extract_file_name(file_name)
         self.result_path = os.path.join(self.output_directory,
                                         '%s_location_result.txt' % file_prefix)
+        self.sub_result_path = os.path.join(self.output_directory,
+                                            '%s_sub_location_result.txt' % file_prefix)
 
     def run(self):
         self.ecocyc_data_loader.build_database()
@@ -48,6 +51,58 @@ class GeneLocationAnalysis:
                 for location_info in data['location_result']:
                     fw.write(location_info + '\n')
                 fw.write('\n')
+        with open(self.sub_result_path, 'w', encoding='utf8') as fw:
+            for idx, data in enumerate(todo_list):
+                for sub_idx, sub_data in enumerate(self.extract_sub_data(data)):
+                    self.process_one_data(sub_data)
+                    fw.write('(%d-%d)\n' % (idx + 1, sub_idx + 1))
+                    fw.write(sub_data['header'] + '\n')
+                    fw.write(sub_data['match_info'] + '\n')
+                    fw.write(sub_data['direction'] + '\n')
+                    for line in sub_data['additional']:
+                        fw.write(line + '\n')
+                    for location_info in sub_data['location_result']:
+                        fw.write(location_info + '\n')
+                    fw.write('\n')
+
+    def extract_sub_data(self, data):
+        match_info = data['match_info'].split('\n')
+        best_cnt = None
+        for kv in match_info:
+            if kv.find(':') >= 0:
+                k, v = kv.split(':')
+                if k.find('match_format') >= 0:
+                    match_format = v.strip()
+            elif kv.find('consistency') >= 0:
+                k, v = kv.split('\t')
+                best_cnt = int(v.strip())
+        cur_cnt = 0
+        start = None
+        step = 1 if data['start'] < data['end'] else -1
+        for end, m in enumerate(match_format):
+            if m == '*':
+                if cur_cnt == 0:
+                    start = end
+                cur_cnt += 1
+            elif m == '.':
+                cur_cnt = 0
+            if cur_cnt == best_cnt:
+                sub_start = data['start'] + step * start
+                sub_end = data['start'] + step * end
+                sub_data = deepcopy(data)
+                sub_data['start'] = sub_start
+                sub_data['end'] = sub_end
+                sub_data['header'] = '%s/%s-%s' % (data['header'].split('/')[0], sub_start, sub_end)
+                output = []
+                for match_info_data in match_info:
+                    if match_info_data.find(':') >= 0:
+                        k, v = match_info_data.split(':')
+                        output.append(k + ': ' + v.strip()[start:end + 1])
+                    else:
+                        k, v = match_info_data.split('\t')
+                        output.append(k + '\t' + v)
+                sub_data['match_info'] = '\n'.join(output)
+                yield sub_data
 
     def process_one_data(self, data):
         start, end = data['start'], data['end']

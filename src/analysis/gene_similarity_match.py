@@ -241,7 +241,7 @@ def render_dna_sequence(gene, database, offset, detail=None, score_merge_idx=Non
         for idx, (same_cnt, same_end) in enumerate(detail):
             same_start = same_end - same_cnt
             while cur_pos < same_start:
-                if idx == score_merge_idx:
+                if score_merge_idx[0] < idx <= score_merge_idx[1]:
                     sequence.append('-')
                 else:
                     sequence.append('.')
@@ -349,7 +349,6 @@ def count_similarity(match_algorithm, scalar, gene, database, offset, min_same, 
         score = 0
         same = 0
         cur_score = 0
-        score_merge_idx = -1
         score_queue = []
         for i in range(tot):
             if not should_change(gene[i], database[i + offset]):
@@ -361,11 +360,19 @@ def count_similarity(match_algorithm, scalar, gene, database, offset, min_same, 
                 score_queue.append([cur_score, i])
                 cur_score = 0
             score = max(score, cur_score)
-        for idx in range(1, len(score_queue)):
-            if score_queue[idx][1] - score_queue[idx][0] - score_queue[idx - 1][1] <= max_patience and score < \
-                    score_queue[idx][0] + score_queue[idx - 1][0]:
-                score = score_queue[idx][0] + score_queue[idx - 1][0]
-                score_merge_idx = idx
+        score_merge_idx = [-1, -1]
+        for idx in range(len(score_queue)):
+            left = score_queue[idx][1] - score_queue[idx][0]
+            total_score = 0
+            for width in range(3):
+                if width + idx < len(score_queue):
+                    total_len = score_queue[idx + width][1] - left
+                    total_score += score_queue[idx + width][0]
+                    if total_len - total_score > 2:
+                        break
+                    if score < total_score:
+                        score = total_score
+                        score_merge_idx = [idx, idx + width]
         if return_detail:
             return score * scalar + same, score_queue, score_merge_idx
         else:
