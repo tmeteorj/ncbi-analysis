@@ -1,13 +1,14 @@
 class EcocycDataLoader:
     def __init__(self, ecocyc_data_file):
         self.ecocyc_data_file = ecocyc_data_file
+        self.gene_name_index = {}
         self.records = []
         self.inter_records = []
         self.headers = None
         self.inv_headers = []
 
     def build_database(self):
-        for line in open(self.ecocyc_data_file, 'r', encoding='utf8'):
+        for line in open(self.ecocyc_data_file, 'r', encoding='utf8', errors='ignore'):
             items = line.rstrip('\r\n').split('\t')
             if len(items) == 0:
                 continue
@@ -22,6 +23,7 @@ class EcocycDataLoader:
             direction, inter_records = record.generate_inter_record()
             self.records.append(record)
             self.inter_records.extend(inter_records)
+            self.gene_name_index[record.gene] = len(self.records) - 1
         self.inter_records.sort(key=lambda arg: arg.start)
 
     def find_first_le(self, pos):
@@ -29,6 +31,12 @@ class EcocycDataLoader:
                                       0,
                                       len(self.inter_records) - 1,
                                       pos)
+
+    def get_target_gene(self, name):
+        try:
+            return self.records[self.gene_name_index[name]]
+        except:
+            return None
 
 
 def binary_search_first_le(arr, left, right, value):
@@ -43,8 +51,9 @@ def binary_search_first_le(arr, left, right, value):
 
 class EcocycRecord:
     def __init__(self, attr):
-        for header in ['gene', 'product', 'promoter_name', 'promoter_pos', 'gene_start_pos', 'map_start_pos',
-                       'map_end_pos']:
+        for header in ['gene', 'product_type', 'product', 'promoter_name', 'promoter_pos', 'gene_start_pos',
+                       'map_start_pos',
+                       'map_end_pos', 'exonic_gene_sizes', 'type']:
             if header.endswith('pos'):
                 value = attr.get(header, -1)
                 if value == '':
