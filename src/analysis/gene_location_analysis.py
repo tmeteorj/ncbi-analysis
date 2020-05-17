@@ -254,6 +254,79 @@ def interval_check(record_left, record_right, left, right):
         raise ValueError("[%d,%d] <-> [%d,%d]" % (record_left, record_right, left, right))
 
 
+def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
+    headers = ['index', 'similarity', 'consistency', 'location', 'gene_name', 'type', 'exonic_gene_sizes', 'product']
+    buff = []
+    index = 0
+    with open(output_path, 'w', encoding='utf8') as fw:
+        fw.write('\t'.join(headers) + '\n')
+        for line in open(input_path, 'r', encoding='utf8'):
+            line = line.strip()
+            if line == '':
+                if len(buff) > 0:
+                    data = extract_consistency_record(buff, ecocyc_data_loader)
+                    buff.clear()
+                    if data is not None:
+                        output = []
+                        index += 1
+                        output.append('%d' % index)
+                        for header in headers[1:]:
+                            output.append(data.get(header, ''))
+                        fw.write('\t'.join(output) + '\n')
+                continue
+            buff.append(line)
+        if len(buff) > 0:
+            data = extract_consistency_record(buff, ecocyc_data_loader)
+            buff.clear()
+            if data is not None:
+                output = []
+                index += 1
+                output.append('%d' % index)
+                for header in headers[1:]:
+                    output.append(data.get(header, ''))
+                fw.write('\t'.join(output) + '\n')
+
+
+def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
+    data = {}
+    location_type = None
+    direction = None
+    direction_matched = None
+    genes = None
+    for line in buff:
+        items = line.split('\t')
+        if items[0] in ['similarity', 'consistency']:
+            data[items[0]] = line.split('\t')[1].strip('%')
+        elif line.startswith('>>>'):
+            direction = '>'
+        elif line.startswith('<<<'):
+            direction = '<'
+        elif line.find(' of ') >= 0:
+            k, v = line.split(' of ')
+            if k not in ['5\'', '3\'', 'cds', 'cover', 'inter-genic']:
+                continue
+            location_type = k
+            genes = v
+        elif line.startswith('original direction'):
+            direction_matched = line[-1]
+    if location_type == 'inter-genic':
+        data['location'] = 'inter genic'
+        data['gene_name'] = genes
+    else:
+        data['location'] = 'antisense' if direction_matched == direction else 'sense'
+        if location_type == '5\'' or location_type == '3\'':
+            data['location'] += ' ' + location_type + 'utr'
+        data['gene_name'] = genes
+        record = ecocyc_data_loader.get_target_gene(genes.strip())
+        if record is None:
+            print(genes + ' not found, might be a promoter')
+            return None
+        data['type'] = record.type
+        data['exonic_gene_sizes'] = record.exonic_gene_sizes
+        data['product'] = record.product
+    return data
+
+
 class IntervalPositionStatus(Enum):
     # .. --
     TotallyLeft = 0
