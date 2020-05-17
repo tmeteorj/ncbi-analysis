@@ -14,7 +14,7 @@ from collections import deque
 
 class GeneSimilarityMatch:
     def __init__(self, gene_path, data_path, output_directory, top_k=20, scalar=1000,
-                 match_algorithm='text_distance', candidate_distance=5, batch_size=5, min_similarity=0.3):
+                 match_algorithm='text_distance', candidate_distance=5, batch_size=5, min_similarity=0.3, patience=0):
         self.data_path = data_path
         self.output_directory = output_directory
         self.data_name = os.path.basename(data_path)
@@ -32,6 +32,7 @@ class GeneSimilarityMatch:
         self.batch_size = batch_size
         self.dna_code = None
         self.rev_dna_code = None
+        self.patience = patience
         self.logger = LoggerFactory()
 
         self.lock = threading.Lock()
@@ -81,8 +82,9 @@ class GeneSimilarityMatch:
         results = self.render_similarity_for_candidates(gene, candidates[:self.top_k])
         self.lock.acquire()
         idx = 1
-        headers = ['name', 'direction', 'similarity', 'consistency', 'original', 'gene_format', 'target_format',
-                   'match_format']
+        headers = ['name', 'direction', 'similarity', 'consistency', 'original      :', 'gene_format   :',
+                   'target_format :',
+                   'match_format  :']
         for candidate, sequence_gene, sequence_target, sequence in results:
             fw.write('(%d)\n' % idx)
             attribute = {
@@ -94,7 +96,10 @@ class GeneSimilarityMatch:
                 attribute['consistency'] = '%d' % (candidate.similarity // self.scalar)
             else:
                 attribute['similarity'] = '%.2f%%' % candidate.similarity
-            for key, value in zip(['origin', 'gene_format', 'target_format', 'match_format'],
+            for key, value in zip(['original      :',
+                                   'gene_format   :',
+                                   'target_format :',
+                                   'match_format  :'],
                                   [gene, sequence_gene, sequence_target, sequence]):
                 attribute[key] = value
 
@@ -120,7 +125,14 @@ class GeneSimilarityMatch:
         for start in range(limitation):
             # if fast_skip(gene_dict, gene_length, database, start, min_same, pat):
             #    continue
-            similarity = count_similarity(self.match_algorithm, self.scalar, gene, database, start, min_same)
+            similarity = count_similarity(match_algorithm=self.match_algorithm,
+                                          scalar=self.scalar,
+                                          gene=gene,
+                                          database=database,
+                                          offset=start,
+                                          min_same=min_same,
+                                          return_detail=False,
+                                          max_patience=self.patience)
             new_solved += 1
             if random.random() * 1000 < 1:
                 self.lock.acquire()
@@ -186,23 +198,34 @@ class GeneSimilarityMatch:
                                                   database,
                                                   candidate.original_match_left,
                                                   min_same=0,
-                                                  return_dp=True)
+                                                  return_detail=True)
                 sequence_gene, sequence_target, sequence = render_dna_sequence(gene, database,
-                                                                               candidate.original_match_left, dp)
+                                                                               candidate.original_match_left,
+                                                                               dp)
                 result.append([candidate, ''.join(sequence_gene), ''.join(sequence_target), ''.join(sequence)])
             elif self.match_algorithm == 'consistency':
+                _, score_list, score_merge_idx = count_similarity('consistency',
+                                                                  self.scalar,
+                                                                  gene,
+                                                                  database,
+                                                                  candidate.original_match_left,
+                                                                  min_same=0,
+                                                                  return_detail=True,
+                                                                  max_patience=self.patience)
                 sequence_gene, sequence_target, sequence = render_dna_sequence(gene, database,
-                                                                               candidate.original_match_left)
+                                                                               candidate.original_match_left,
+                                                                               score_list,
+                                                                               score_merge_idx)
                 result.append([candidate, ''.join(sequence_gene), ''.join(sequence_target), ''.join(sequence)])
         return result
 
 
-def render_dna_sequence(gene, database, offset, dp=None):
+def render_dna_sequence(gene, database, offset, detail=None, score_merge_idx=None):
     sequence_gene = []
     sequence_target = []
     sequence = []
     tot = len(gene)
-    if dp is None:
+    if detail is None:
         for i in range(tot):
             sequence_gene.append(gene[i])
             sequence_target.append(database[i + offset])
@@ -210,21 +233,42 @@ def render_dna_sequence(gene, database, offset, dp=None):
                 sequence.append('*')
             else:
                 sequence.append('.')
+        sequence_gene, sequence_target, sequence
+    elif score_merge_idx is not None:
+        sequence_gene.extend(gene[:])
+        sequence_target.extend(database[offset:offset + tot])
+        cur_pos = 0
+        for idx, (same_cnt, same_end) in enumerate(detail):
+            same_start = same_end - same_cnt
+            while cur_pos < same_start:
+                if idx == score_merge_idx:
+                    sequence.append('-')
+                else:
+                    sequence.append('.')
+                cur_pos += 1
+            while cur_pos < same_end:
+                sequence.append('*')
+                cur_pos += 1
+        while cur_pos < tot:
+            sequence.append('.')
+            cur_pos += 1
+        sequence_gene, sequence_target, sequence
     else:
         i, j = tot, tot
         while i > 0 or j > 0:
             gene_a, gene_b = gene[i - 1] if i > 0 else '.', database[j + offset - 1] if j > 0 else '.'
-            if i > 0 and j > 0 and dp[i][j] == dp[i - 1][j - 1] + should_change(gene[i - 1], database[j + offset - 1]):
+            if i > 0 and j > 0 and detail[i][j] == detail[i - 1][j - 1] + should_change(gene[i - 1],
+                                                                                        database[j + offset - 1]):
                 sequence_gene.append(gene_a)
                 sequence_target.append(gene_b)
                 sequence.append('*' if should_change(gene[i - 1], database[j + offset - 1]) == 0 else '.')
                 i, j = i - 1, j - 1
-            elif dp[i][j] == dp[i - 1][j] + 1:
+            elif detail[i][j] == detail[i - 1][j] + 1:
                 sequence_gene.append(gene_a)
                 sequence_target.append('.')
                 sequence.append('.')
                 i -= 1
-            elif dp[i][j] == dp[i][j - 1] + 1:
+            elif detail[i][j] == detail[i][j - 1] + 1:
                 sequence_gene.append('.')
                 sequence_target.append(gene_b)
                 sequence.append('.')
@@ -280,7 +324,7 @@ def count_acgt(gene):
     return gene_dict
 
 
-def count_similarity(match_algorithm, scalar, gene, database, offset, min_same, return_dp=False):
+def count_similarity(match_algorithm, scalar, gene, database, offset, min_same, return_detail=False, max_patience=2):
     tot = len(gene)
     if match_algorithm == 'text_distance':
         max_step = tot - min_same
@@ -304,16 +348,29 @@ def count_similarity(match_algorithm, scalar, gene, database, offset, min_same, 
     elif match_algorithm == 'consistency':
         score = 0
         same = 0
-        cur = 0
+        cur_score = 0
+        score_merge_idx = -1
+        score_queue = []
         for i in range(tot):
             if not should_change(gene[i], database[i + offset]):
-                cur += 1
+                cur_score += 1
                 same += 1
+                if i == tot - 1:
+                    score_queue.append([cur_score, tot])
             else:
-                cur = 0
-            score = max(score, cur)
-        return score * scalar + same
-    if return_dp:
+                score_queue.append([cur_score, i])
+                cur_score = 0
+            score = max(score, cur_score)
+        for idx in range(1, len(score_queue)):
+            if score_queue[idx][1] - score_queue[idx][0] - score_queue[idx - 1][1] <= max_patience and score < \
+                    score_queue[idx][0] + score_queue[idx - 1][0]:
+                score = score_queue[idx][0] + score_queue[idx - 1][0]
+                score_merge_idx = idx
+        if return_detail:
+            return score * scalar + same, score_queue, score_merge_idx
+        else:
+            return score * scalar + same
+    if return_detail:
         return int(score * scalar / tot), dp
     return int(score * scalar / tot)
 
