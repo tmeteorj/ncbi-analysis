@@ -102,6 +102,7 @@ class GeneLocationAnalysis:
                         k, v = match_info_data.split('\t')
                         output.append(k + '\t' + v)
                 sub_data['match_info'] = '\n'.join(output)
+                sub_data['location_result'].clear()
                 yield sub_data
 
     def process_one_data(self, data):

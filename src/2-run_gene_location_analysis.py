@@ -3,7 +3,7 @@ import os
 from analysis.gene_location_analysis import GeneLocationAnalysis
 from experiment_config import ExperimentConfig
 
-location_analysis_names = ['dsrA_antisense_consistency_match_result.txt']
+location_analysis_names = ['dinQ_antisense_consistency_match_result.txt']
 ecocyc_file_name = 'Ecocyc_NC_000913.txt'
 
 if __name__ == '__main__':
