@@ -290,10 +290,10 @@ def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
 
 def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
     data = {}
-    location_type = None
+    location_type = ''
     direction = None
     direction_matched = None
-    genes = None
+    genes = ''
     for line in buff:
         items = line.split('\t')
         if items[0] in ['similarity', 'consistency']:
