@@ -323,10 +323,10 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
         record = ecocyc_data_loader.get_target_gene(genes.strip())
         if record is None:
             print(genes + ' not found, might be a promoter')
-            return None
-        data['type'] = record.type
-        data['exonic_gene_sizes'] = record.exonic_gene_sizes
-        data['product'] = record.product
+        else:
+            data['type'] = record.type
+            data['exonic_gene_sizes'] = record.exonic_gene_sizes
+            data['product'] = record.product
     return data
 
 
