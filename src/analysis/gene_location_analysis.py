@@ -303,11 +303,11 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
         elif line.startswith('<<<'):
             direction = '<'
         elif line.find(' of ') >= 0:
-            k, v = line.split(' of ')
-            if k not in ['5\'', '3\'', 'cds', 'cover', 'inter-genic']:
+            items = line.split(' of ')
+            if len(items)!=2 or items[0] not in ['5\'', '3\'', 'cds', 'cover', 'inter-genic']:
                 continue
-            location_type = k
-            genes = v
+            location_type = items[0]
+            genes = items[1]
         elif line.startswith('original direction'):
             direction_matched = line[-1]
     if location_type == 'inter-genic':
