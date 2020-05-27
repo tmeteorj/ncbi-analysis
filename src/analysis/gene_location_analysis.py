@@ -57,6 +57,7 @@ class GeneLocationAnalysis:
                     self.process_one_data(sub_data)
                     fw.write('(%d-%d)\n' % (idx + 1, sub_idx + 1))
                     fw.write(sub_data['header'] + '\n')
+                    fw.write('Original Position\t' + sub_data['left'] + '\t' + sub_data['right'] + '\n')
                     fw.write(sub_data['match_info'] + '\n')
                     fw.write(sub_data['direction'] + '\n')
                     for line in sub_data['additional']:
@@ -90,6 +91,8 @@ class GeneLocationAnalysis:
                 sub_start = data['start'] + step * start
                 sub_end = data['start'] + step * end
                 sub_data = deepcopy(data)
+                sub_data['left'] = str(start + 1)
+                sub_data['right'] = str(end + 1)
                 sub_data['start'] = sub_start
                 sub_data['end'] = sub_end
                 sub_data['header'] = '%s/%s-%s' % (data['header'].split('/')[0], sub_start, sub_end)
@@ -304,7 +307,7 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
             direction = '<'
         elif line.find(' of ') >= 0:
             items = line.split(' of ')
-            if len(items)!=2 or items[0] not in ['5\'', '3\'', 'cds', 'cover', 'inter-genic']:
+            if len(items) != 2 or items[0] not in ['5\'', '3\'', 'cds', 'cover', 'inter-genic']:
                 continue
             location_type = items[0]
             genes = items[1]
