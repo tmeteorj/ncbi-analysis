@@ -261,7 +261,6 @@ def interval_check(record_left, record_right, left, right):
 def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
     headers = ['index', 'similarity', 'consistency', 'location', 'gene_name', 'type', 'exonic_gene_sizes', 'product', 'site']
     buff = []
-    index = 0
     with open(output_path, 'w', encoding='utf8') as fw:
         fw.write('\t'.join(headers) + '\n')
         for line in open(input_path, 'r', encoding='utf8'):
@@ -272,9 +271,7 @@ def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
                     buff.clear()
                     if data is not None:
                         output = []
-                        index += 1
-                        output.append('%d' % index)
-                        for header in headers[1:]:
+                        for header in headers:
                             output.append(data.get(header, ''))
                         fw.write('\t'.join(output) + '\n')
                 continue
@@ -284,9 +281,7 @@ def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
             buff.clear()
             if data is not None:
                 output = []
-                index += 1
-                output.append('%d' % index)
-                for header in headers[1:]:
+                for header in headers:
                     output.append(data.get(header, ''))
                 fw.write('\t'.join(output) + '\n')
 
@@ -315,6 +310,8 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
             direction_matched = line[-1]
         elif line.startswith('>NC'):
             data['site'] = line.strip().split('/')[-1]
+        elif line.startswith('(') and line.strip().endswith(')'):
+            data['index'] = line.strip()[1:-1]
     if location_type == 'inter-genic':
         data['location'] = 'inter genic'
         data['gene_name'] = genes
