@@ -17,7 +17,10 @@ class LocationReorder:
         with open(self.result_path, 'w', encoding='utf8') as fw:
             for index in open(self.index_path, 'r', encoding='utf8'):
                 index = index.strip()
-                for line in data[index]:
+                result = data.get(index,data.get('(%s)'%index,None))
+                if result is None:
+                    print('%s not found in location file'%index)
+                for line in result:
                     fw.write(line + '\n')
                 fw.write('\n')
 
