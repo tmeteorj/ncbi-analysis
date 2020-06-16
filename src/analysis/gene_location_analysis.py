@@ -259,31 +259,43 @@ def interval_check(record_left, record_right, left, right):
 
 
 def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
-    headers = ['index', 'similarity', 'consistency', 'location', 'gene_name', 'type', 'exonic_gene_sizes', 'product', 'site']
+    headers = ['index', 'similarity', 'consistency', 'location', 'gene_name', 'type', 'exonic_gene_sizes', 'product',
+               'site']
+    max_header_len = len(headers)
+    datas = []
     buff = []
+    for line in open(input_path, 'r', encoding='utf8'):
+        line = line.strip()
+        if line == '':
+            if len(buff) > 0:
+                data = extract_consistency_record(buff, ecocyc_data_loader)
+                buff.clear()
+                if data is not None:
+                    output = []
+                    for header in headers:
+                        output.append(data.get(header, ''))
+                    for start, end in data.get('location interval', []):
+                        output.extend([start, end])
+                    max_header_len = max(max_header_len, len(output))
+                    datas.append(output)
+            continue
+        buff.append(line)
+    if len(buff) > 0:
+        data = extract_consistency_record(buff, ecocyc_data_loader)
+        if data is not None:
+            output = []
+            for header in headers:
+                output.append(data.get(header, ''))
+            max_header_len = max(max_header_len, len(output))
+            datas.append(output)
     with open(output_path, 'w', encoding='utf8') as fw:
+        idx = 1
+        while len(headers) < max_header_len:
+            headers.extend(['location start %d' % idx, 'location end %d' % idx])
+            idx += 1
         fw.write('\t'.join(headers) + '\n')
-        for line in open(input_path, 'r', encoding='utf8'):
-            line = line.strip()
-            if line == '':
-                if len(buff) > 0:
-                    data = extract_consistency_record(buff, ecocyc_data_loader)
-                    buff.clear()
-                    if data is not None:
-                        output = []
-                        for header in headers:
-                            output.append(data.get(header, ''))
-                        fw.write('\t'.join(output) + '\n')
-                continue
-            buff.append(line)
-        if len(buff) > 0:
-            data = extract_consistency_record(buff, ecocyc_data_loader)
-            buff.clear()
-            if data is not None:
-                output = []
-                for header in headers:
-                    output.append(data.get(header, ''))
-                fw.write('\t'.join(output) + '\n')
+        for data in datas:
+            fw.write('\t'.join(data) + '\n')
 
 
 def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
@@ -312,6 +324,19 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
             data['site'] = line.strip().split('/')[-1]
         elif line.startswith('(') and line.strip().endswith(')'):
             data['index'] = line.strip()[1:-1]
+        elif line.startswith('match_format'):
+            _, sequence = re.split(r'\s+', line.strip())
+            sequence = sequence[1:]
+            score = 0
+            interval = []
+            for idx, ch in enumerate(sequence):
+                if ch == '.':
+                    score = 0
+                else:
+                    score += 1
+                if score == int(data.get('consistency', 10000)):
+                    interval.append([str(idx + 2 - score), str(idx + 1)])
+            data['location interval'] = interval
     if location_type == 'inter-genic':
         data['location'] = 'inter genic'
         data['gene_name'] = genes
