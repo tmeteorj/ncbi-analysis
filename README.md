@@ -37,3 +37,38 @@ This project is for analysis of DNA/RNA based on ncbi database
   - data_path: the element path, which should be downloaded in neighbor analysis
   - rna_path: the file path which contains the names of gene
   - output_path: the result path for gene extract
+
+## Gene Similarity Match
+- Gene similarity analysis will get similarity gene sequence from a database like NC_000913.
+- We provide three ways to compute the similarity as follows.
+  - text_distance: means the minimal steps to convert one sequence to another sequence. The less step the better.
+  - char_match: compare the sequence one by one, and count the number of same pairs. The more same pair the better.
+  - consistency: compare the sequence one by one,  but allowed some of pairs not equal(called patience). The matched sequence who has longer length will get a higher score.
+- When run the similarity analysis, you need to provide following parameters.
+  - gene_path: the based gene you want to found, with tsv format and contains header sequence
+  - data_path: the database you want to find sequence from. 
+  - output_directory: where the result should be restored.
+  - top_k: find best top_k number of sequence
+  - scalar: not much important, to help the computing of similarity , default 1000
+  - match_algorithm: match algorithm, which should comes from text_distance, char_match and consistency.
+  - candidate_distance: the matched sequences' distance should at least be this, to avoid top similar sequence always come from a nearby of some position. 
+  - batch_size: multi thread parameter, to find batch_size of sequence in the same time.
+  - min_similarity: only store sequence with higher than this similarity.
+  - patience: for consistency match, the maximal number of different steps allowed to ignore. 
+- The output will include the top_k result of matched sequence in *_match_result.txt.
+
+## Gene Location Analysis
+- Gene location analysis based on the result of similarity match. It will generate more detail information like the position, promoter, product of matched sequence.
+- The input include three parameters as follows.
+  - input_file_path: means the match result of gene similarity match
+  - ecocyc_file_path: this file contains gene information like promoter, product, start/end position, etc. And it is generated from ecocyc_analysis component.
+  - output_directory: where the result should be restored.
+- The output file include two parts.
+  - *_location_result.txt: the detail information of whole matched sequence
+  - *_sub_location_result.txt: the maximal consistency sub sequence's detail information
+- The function format_data_to_tsv in the same file can convert location file into tsv format for better understanding.
+
+## Location Reorder
+- Location reorder is to reorder the location file from Gene Location Analysis. 
+- You can give a list of orders, and this component will reorder the match information based on the order
+- The input file contains the order list and location result file, while the output is what above described. 

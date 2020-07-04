@@ -1,5 +1,5 @@
 from analysis.gene_extract import GeneExtract
-from analysis.gene_name_eco_download import EcocycAnalysis
+from analysis.ecocyc_analysis import EcocycAnalysis
 from experiment_config import *
 
 extract_gene_file_name = 'NC_000913.3.txt'
