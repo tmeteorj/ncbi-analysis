@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 import re
 import sys
@@ -7,14 +8,15 @@ from utils.factories.logger_factory import LoggerFactory
 from utils.str_util import StrConverter
 
 
+@dataclass
 class ClusterMatcher:
-    def __init__(self, rna_tag, input_path, output_directory):
-        self.rna_tag = rna_tag
-        self.input_path = input_path
-        self.output_directory = output_directory
-        self.logger = LoggerFactory(1)
+    rna_tag: str
+    input_path: str
+    output_directory: str = None
 
-        file_prefix = StrConverter.extract_file_name(rna_tag)
+    def __post_init__(self):
+        self.logger = LoggerFactory(1)
+        file_prefix = StrConverter.extract_file_name(self.rna_tag)
         self.cluster_result_path = os.path.join(self.output_directory,
                                                 '%s_cluster_result.txt' % file_prefix)
         self.sample_result_path = os.path.join(self.output_directory,

@@ -2,6 +2,7 @@ import gzip
 import json
 import os
 import traceback
+from dataclasses import dataclass
 from urllib import request
 
 from utils.factories.logger_factory import LoggerFactory
@@ -10,23 +11,26 @@ from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
 from utils.str_util import StrConverter
 
 
+@dataclass
 class EcocycAnalysis:
-    def __init__(self, input_path, download_directory, output_directory, ecocyc_params, cookie=None):
-        self.download_directory = download_directory
-        self.output_directory = output_directory
-        self.input_path = input_path
-        self.from_gene_names = ecocyc_params['from_gene_names']
-        self.output_best_promoter = ecocyc_params['output_best_promoter']
-        self.output_detail_information = ecocyc_params['output_detail_information']
-        self.analysis_promoter = ecocyc_params['analysis_promoter']
-        self.if_get_summary = ecocyc_params['if_get_summary']
+    input_path: str
+    download_directory: str
+    output_directory: str
+    ecocyc_params: dict
+    cookie: str = None
+
+    def __post_init__(self):
+        self.from_gene_names = self.ecocyc_params['from_gene_names']
+        self.output_best_promoter = self.ecocyc_params['output_best_promoter']
+        self.output_detail_information = self.ecocyc_params['output_detail_information']
+        self.analysis_promoter = self.ecocyc_params['analysis_promoter']
+        self.if_get_summary = self.ecocyc_params['if_get_summary']
         self.sequence_start_idx = None
         self.sequence_end_idx = None
-        self.cookie = cookie
         self.headers = {}
         self.inv_headers = []
 
-        file_name = os.path.basename(input_path)
+        file_name = os.path.basename(self.input_path)
         file_prefix = StrConverter.extract_file_name(file_name)
         self.ecocyc_result_path = os.path.join(self.output_directory, '%s_ecocyc_result.txt' % file_prefix)
         self.ecocyc_error_path = os.path.join(self.output_directory, '%s_ecocyc_error.txt' % file_prefix)

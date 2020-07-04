@@ -1,14 +1,17 @@
 import os
+from dataclasses import dataclass
 
 from utils.gene_file_util import GeneFileReader
 from utils.str_util import StrConverter
 
 
+@dataclass
 class GeneRangeExtract:
-    def __init__(self, data_path, output_directory):
-        self.data_path = data_path
-        self.output_directory = output_directory
-        file_name = os.path.basename(data_path)
+    data_path: str
+    output_directory: str
+
+    def __post_init__(self):
+        file_name = os.path.basename(self.data_path)
         file_prefix = StrConverter.extract_file_name(file_name)
         self.result_path = os.path.join(self.output_directory, '%s_range_result.txt' % file_prefix)
         self.gene_reader = GeneFileReader(self.data_path)

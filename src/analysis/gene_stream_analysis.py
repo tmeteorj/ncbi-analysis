@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
@@ -6,22 +7,25 @@ from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 
 
+@dataclass
 class GeneStreamAnalysis:
-    def __init__(self, data_path, input_path, output_directory, mode='rna', limit=200):
-        self.mode = mode
-        self.data_path = data_path
-        self.inter_path = input_path if mode == 'inter' else None
-        self.rna_path = input_path if mode == 'rna' else None
-        self.output_directory = output_directory
-        file_name = os.path.basename(input_path)
+    data_path: str
+    input_path: str
+    output_directory: str
+    mode: str = 'rna'
+    limit: int = 200
+
+    def __post_init__(self):
+        self.inter_path = self.input_path if self.mode == 'inter' else None
+        self.rna_path = self.input_path if self.mode == 'rna' else None
+        file_name = os.path.basename(self.input_path)
         file_prefix = StrConverter.extract_file_name(file_name)
-        suffix = 'stream_%d' % limit if mode == 'rna' else 'gene'
+        suffix = 'stream_%d' % self.limit if self.mode == 'rna' else 'gene'
         self.result_path = os.path.join(self.output_directory, '%s_%s_result.txt' % (file_prefix, suffix))
         self.gene_reader = GeneFileReader(self.data_path)
         self.logger = LoggerFactory()
         self.headers = {}
         self.inv_headers = []
-        self.limit = limit
 
     def get_utr_between(self, first, second):
         left = self.gene_reader.gene_segments[first].cds[1]

@@ -1,21 +1,24 @@
 import os
 import re
 from copy import deepcopy
+from dataclasses import dataclass
 from enum import Enum
 
 from src.utils.ecocyc_data_loader import EcocycDataLoader, EcocycInterRecord
 from src.utils.str_util import StrConverter
 
 
+@dataclass
 class GeneLocationAnalysis:
+    input_file_path: str
+    ecocyc_file_path: str
+    output_directory: str
 
-    def __init__(self, input_file_path, ecocyc_file_path, outut_directory):
-        self.input_file_path = input_file_path
-        self.output_directory = outut_directory
-        self.ecocyc_data_loader = EcocycDataLoader(ecocyc_file_path)
+    def __post_init__(self):
+        self.ecocyc_data_loader = EcocycDataLoader(self.ecocyc_file_path)
 
-        self.data_name = os.path.basename(input_file_path)
-        file_name = os.path.basename(input_file_path)
+        self.data_name = os.path.basename(self.input_file_path)
+        file_name = os.path.basename(self.input_file_path)
         file_prefix = StrConverter.extract_file_name(file_name)
         self.result_path = os.path.join(self.output_directory,
                                         '%s_location_result.txt' % file_prefix)

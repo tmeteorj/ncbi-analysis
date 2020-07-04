@@ -2,8 +2,8 @@ from analysis.cluster_match import ClusterMatcher
 from analysis.neighbor_analysis import NeighborAnalysis
 from experiment_config import *
 
-fna_name = 'T2_sun_bacteria.fna'
-rna_tag = 'T2_sun'
+fna_name = '7a_utr_bacteria.fna'
+rna_tag = '7a_utr'
 
 if __name__ == '__main__':
     input_path = os.path.join(ExperimentConfig.data_directory, fna_name)

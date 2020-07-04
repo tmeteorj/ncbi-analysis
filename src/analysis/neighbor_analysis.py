@@ -4,6 +4,7 @@ import re
 import time
 import traceback
 from collections import Counter
+from dataclasses import dataclass
 
 from experiment_config import ExperimentConfig
 from utils.data_download_util import DataDownloadTool
@@ -13,15 +14,17 @@ from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 
 
+@dataclass
 class NeighborAnalysis:
-    def __init__(self, input_path, download_directory, output_directory, keep_prefix_num=1):
-        self.logger = LoggerFactory(3)
-        self.input_path = input_path
-        self.download_directory = download_directory
-        self.output_directory = output_directory
-        self.keep_prefix_num = keep_prefix_num
+    input_path: str
+    download_directory: str
+    output_directory: str
+    keep_prefix_num: int = 1
 
-        file_name = os.path.basename(input_path)
+    def __post_init__(self):
+        self.logger = LoggerFactory(3)
+
+        file_name = os.path.basename(self.input_path)
         file_prefix = StrConverter.extract_file_name(file_name)
         self.neighbor_result_path = os.path.join(self.output_directory, '%s_neighbor_result.txt' % file_prefix)
         self.next_gene_result_path = os.path.join(self.output_directory, '%s_next_neighbor_result.txt' % file_prefix)

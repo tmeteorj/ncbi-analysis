@@ -4,6 +4,7 @@ import random
 import re
 import threading
 import time
+from dataclasses import dataclass
 
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
@@ -12,27 +13,28 @@ from utils.str_util import StrConverter
 from collections import deque
 
 
+@dataclass
 class GeneSimilarityMatch:
-    def __init__(self, gene_path, data_path, output_directory, top_k=20, scalar=1000,
-                 match_algorithm='text_distance', candidate_distance=5, batch_size=5, min_similarity=0.3, patience=0):
-        self.data_path = data_path
-        self.output_directory = output_directory
-        self.data_name = os.path.basename(data_path)
-        file_name = os.path.basename(gene_path)
+    gene_path: str
+    data_path: str
+    output_directory: str
+    top_k: int = 20
+    scalar: int = 1000
+    match_algorithm: str = 'consistency'
+    candidate_distance: int = 5
+    batch_size: int = 5
+    min_similarity: float = 0.3
+    patience: int = 0
+
+    def __post_init__(self):
+        self.data_name = os.path.basename(self.data_path)
+        file_name = os.path.basename(self.gene_path)
         file_prefix = StrConverter.extract_file_name(file_name)
         self.result_path = os.path.join(self.output_directory,
-                                        '%s_%s_match_result.txt' % (file_prefix, match_algorithm))
+                                        '%s_%s_match_result.txt' % (file_prefix, self.match_algorithm))
         self.gene_reader = GeneFileReader(self.data_path)
-        self.gene_path = gene_path
-        self.top_k = top_k
-        self.scalar = scalar
-        self.match_algorithm = match_algorithm
-        self.candidate_distance = candidate_distance
-        self.min_similarity = min_similarity
-        self.batch_size = batch_size
         self.dna_code = None
         self.rev_dna_code = None
-        self.patience = patience
         self.logger = LoggerFactory()
 
         self.lock = threading.Lock()
