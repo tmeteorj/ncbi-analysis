@@ -12,12 +12,10 @@ data_name = 'NC_000913.3.txt'
 """
 match algorithm:
 (1) text_distance  :  the minimum step to change one sequence to other sequence 
-(2) char_match     :　compare each gene one by one
+(2) direct_match     :　compare each gene one by one
 (3) consistency    :  compare each gene one by one, and the longest matched sequence has the most top priority
 """
-# match_algorithm = 'text_distance'
-# match_algorithm = 'char_match'
-match_algorithm = 'consistency'
+match_algorithm = 'text_distance'
 
 # only consider of the best gene in the range of candidate_distance
 candidate_distance = 5

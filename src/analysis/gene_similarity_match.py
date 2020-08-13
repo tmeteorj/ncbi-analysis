@@ -159,7 +159,7 @@ class GeneSimilarityMatch:
             if similarity < 0:
                 continue
             if self.match_algorithm == 'text_distance':
-                new_candidate = MatchCandidate(start, start + gene_length - 1, is_reverse, database,
+                new_candidate = MatchCandidate(start, start + gene_length - 1, is_reverse, len(database),
                                                similarity * 100.0 / self.scalar)
                 added_flag = update_candidate_list(new_candidate,
                                                    buff,
@@ -177,7 +177,7 @@ class GeneSimilarityMatch:
                 heapq.heappush(similarity_heap, similarity)
                 if len(similarity_heap) > self.top_k:
                     heapq.heappop(similarity_heap)
-                new_candidate = MatchCandidate(start, start + gene_length - 1, is_reverse, database,
+                new_candidate = MatchCandidate(start, start + gene_length - 1, is_reverse, len(database),
                                                similarity)
                 candidates.append(new_candidate)
             else:
@@ -404,16 +404,24 @@ def update_or_add_min_val(dp, i, j, update_val):
     return False
 
 
+@dataclass
 class MatchCandidate:
-    def __init__(self, left, right, is_reverse, database, similarity):
-        self.is_reverse = is_reverse
-        if is_reverse:
-            self.start = len(database) - left
-            self.end = len(database) - right
+    left: int
+    right: int
+    is_reverse: bool
+    database_length: int
+    similarity: float
+
+    def __post_init__(self):
+        if self.is_reverse:
+            self.start = self.database_length - self.left
+            self.end = self.database_length - self.right
         else:
-            self.start = left + 1
-            self.end = right + 1
-        self.similarity = similarity
+            self.start = self.left + 1
+            self.end = self.right + 1
         self.should_ignore = False
-        self.original_match_left = left
-        self.original_match_right = right
+        self.original_match_left = self.left
+        self.original_match_right = self.right
+
+    def __str__(self):
+        return '(%d,%d,%.2f,%s)' % (self.start, self.right, self.similarity, self.should_ignore)

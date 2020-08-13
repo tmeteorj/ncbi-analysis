@@ -43,7 +43,8 @@ class GeneSegment:
         if line.startswith("/db_xref="):
             key, value = line.lstrip("/db_xref=").strip("\"").split(':')
             if key.lower() == 'geneid':
-                self.gene_id = value.lower()
+                value = value.split("\"")[0]
+                self.gene_id = int(re.sub(r'[^0-9]', '', value.lower()))
             else:
                 self.xref[key] = value
 
@@ -117,6 +118,7 @@ class GeneFileReader:
         gene_segment = GeneSegment()
         last_line = ''
         success = True
+        complement = None
         for line in data:
             try:
                 line_type = self.check_line_type(line, GeneDataPartType.GeneSegmentPart)
@@ -135,7 +137,8 @@ class GeneFileReader:
                     gene_segment.extract_attribute(last_line)
             except:
                 self.logger.info(line)
-                if not complement.startswith('join') and not complement.startswith('complement(join'):
+                if not complement or (
+                        not complement.startswith('join') and not complement.startswith('complement(join')):
                     traceback.print_exc()
                 success = False
                 break
@@ -144,7 +147,7 @@ class GeneFileReader:
         data.clear()
 
     @staticmethod
-    def check_line_type(line, part_status):
+    def check_line_type(line: str, part_status):
         strip_line = line.strip()
         if part_status == GeneDataPartType.HeaderPart:
             if strip_line.startswith(ExperimentConfig.VALUE_SOURCE_START):
@@ -162,3 +165,42 @@ class GeneFileReader:
             if strip_line.startswith(ExperimentConfig.VALUE_DNA_PART_END):
                 return GeneDataLineType.DNAEnd
         return GeneDataLineType.Other
+
+
+if __name__ == '__main__':
+
+    file_path = 'D:/Workspace/ncbi-analysis/data/rna_analysis/rna_download_data/NC_000913.3.txt'
+    gene = GeneFileReader(file_path)
+    gene.build_information()
+    b_dict = {}
+    for gene_segment in gene.gene_segments:
+        if gene_segment.gene_id:
+            b_dict[gene_segment.locus_tag] = [gene_segment.gene, gene_segment.gene_id]
+    heads = None
+    with open('D:/Workspace/ncbi-analysis/R/Path_Information_Sample.txt', 'w', encoding='utf8') as fw:
+        fw.write('PathId\tPath Name\tLocusTag\tGene\tGeneId\n')
+        for line in open('D:/Workspace/ncbi-analysis/R/ID_Eco_Path.txt', 'r', encoding='utf8'):
+            items = line.strip().split('\t')
+            if heads is None:
+                heads = items
+                # keggid locus path
+            elif items[1] in ['b2397',
+                              'b2815',
+                              'b2590',
+                              'b0745',
+                              'b1231',
+                              'b0216',
+                              'b2402',
+                              'b3171',
+                              'b1975',
+                              'b4370',
+                              'b0971',
+                              'b3798',
+                              'b3761',
+                              'b1911',
+                              'b1977',
+                              'b0749']:
+                items[1], items[2] = items[2], items[1]
+                items.extend(b_dict.get(items[2], ['', '']))
+                items = map(str, items)
+                fw.write('\t'.join(items) + '\n')
