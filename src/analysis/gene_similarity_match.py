@@ -48,11 +48,23 @@ class MatchCandidate:
     def get_similarity_str(self):
         result = 'weighted=%.2f' % self.weighted_similarity
         for key, value in self.similarity_dict.items():
-            result += ', %s=%.2f' % (key, value)
+            result += ', %s=%.2f' % (key.name, value)
         return result
 
     def __str__(self):
         return '[%d-%d], (%s), %s, ' % (self.start, self.right, self.get_similarity_str(), self.should_ignore)
+
+    def __le__(self, other):
+        return self.weighted_similarity <= other.weighted_similarity
+
+    def __lt__(self, other):
+        return self.weighted_similarity < other.weighted_similarity
+
+    def __ge__(self, other):
+        return self.weighted_similarity >= other.weighted_similarity
+
+    def __gt__(self, other):
+        return self.weighted_similarity > other.weighted_similarity
 
 
 @dataclass
@@ -196,11 +208,12 @@ class GeneSimilarityMatch:
                                                candidates,
                                                self.candidate_distance)
             if added_flag:
-                heapq.heappush(similarity_heap, candidates[-1].weighted_similarity)
+                heapq.heappush(similarity_heap, candidates[-1])
                 if len(similarity_heap) > self.top_k:
                     heapq.heappop(similarity_heap)
                     top = similarity_heap[0]
-                    min_weighted_similarity_in_candidates = max(min_weighted_similarity_in_candidates, top)
+                    min_weighted_similarity_in_candidates = max(min_weighted_similarity_in_candidates,
+                                                                top.weighted_similarity)
 
             new_solved += 1
             if random.random() * 1000 < 1:
@@ -209,7 +222,7 @@ class GeneSimilarityMatch:
                 self.logger.info_with_expire_time(
                     'Doing Similarity Matching for %s[%s]: %d/%d(%.2f%%) '
                     '--top_k=%d '
-                    '--min_weighted_similarity=%.2f '
+                    '--top_similarity_info=[%s] '
                     '--gene_length=%d '
                     '--candidates_num=%d' % (
                         name,
@@ -218,7 +231,7 @@ class GeneSimilarityMatch:
                         self.total,
                         self.solved * 100.0 / self.total,
                         self.top_k,
-                        similarity_heap[0] if len(similarity_heap) > 0 else 0,
+                        similarity_heap[0].get_similarity_str() if len(similarity_heap) > 0 else 'None',
                         gene_length,
                         len(candidates)
                     ),

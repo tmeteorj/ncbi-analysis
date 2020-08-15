@@ -15,7 +15,7 @@ match algorithm:
 (2) direct_match     :　compare each gene one by one
 (3) consistency    :  compare each gene one by one, and the longest matched sequence has the most top priority
 """
-weighted = [1, 1, 1]
+weighted = [3, 1, 2]
 
 # only consider of the best gene in the range of candidate_distance
 candidate_distance = 5
