@@ -16,7 +16,6 @@ match algorithm:
 (3) consistency    :  compare each gene one by one, and the longest matched sequence has the most top priority
 """
 weighted = [3, 1, 2]
-
 # only consider of the best gene in the range of candidate_distance
 candidate_distance = 5
 # output top 500 sequence
@@ -25,7 +24,6 @@ top_k = 500
 batch_size = 2
 # ignore mismatch with patience 2
 patience = 2
-
 
 ecocyc_file_name = 'Ecocyc_NC_000913.txt'
 

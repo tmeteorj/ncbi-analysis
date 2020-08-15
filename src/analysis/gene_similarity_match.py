@@ -14,6 +14,8 @@ from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 from collections import deque
 
+CandidateClearSize = 10000
+
 
 class MatchAlgorithm(Enum):
     text_distance = 0
@@ -65,6 +67,36 @@ class MatchCandidate:
 
     def __gt__(self, other):
         return self.weighted_similarity > other.weighted_similarity
+
+
+class HasReturnThread(threading.Thread):
+    def __init__(self, func, args, name=''):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.func = func
+        self.args = args
+        self.result = None
+        self.local_thread = None
+
+    def start(self) -> None:
+        new_args = [self.func]
+        new_args.extend(self.args)
+        new_args = tuple(new_args)
+        self.local_thread = threading.Thread(target=self.trace_func, args=new_args)
+        self.local_thread.start()
+
+    def join(self) -> None:
+        self.local_thread.join()
+
+    def trace_func(self, func, *args, **kwargs):
+        ret = func(*args, **kwargs)
+        self.result = ret
+
+    def get_result(self):
+        try:
+            return self.result
+        except Exception:
+            return None
 
 
 @dataclass
@@ -124,16 +156,17 @@ class GeneSimilarityMatch:
                 t.join()
 
     def find_candidate_for_gene(self, name, gene, fw):
-        candidates = [[], []]
-        t1 = threading.Thread(target=self.match_gene,
-                              args=(name, gene, self.dna_code, False, candidates[0],))
+
+        t1 = HasReturnThread(func=self.match_gene,
+                             args=(name, gene, self.dna_code, False,))
         t1.start()
-        t2 = threading.Thread(target=self.match_gene,
-                              args=(name, gene, self.rev_dna_code, True, candidates[1],))
+        t2 = HasReturnThread(func=self.match_gene,
+                             args=(name, gene, self.rev_dna_code, True,))
         t2.start()
         t1.join()
         t2.join()
-        candidates = candidates[0] + candidates[1]
+
+        candidates = t1.get_result() + t2.get_result()
         candidates.sort(key=lambda arg: -arg.weighted_similarity)
         results = self.render_similarity_for_candidates(gene, candidates[:self.top_k])
         self.lock.acquire()
@@ -181,7 +214,8 @@ class GeneSimilarityMatch:
             idx += 1
         self.lock.release()
 
-    def match_gene(self, name, gene, database, is_reverse, candidates: List[MatchCandidate]):
+    def match_gene(self, name, gene, database, is_reverse):
+        candidates: List[MatchCandidate] = []
         gene_length = len(gene)
         min_weighted_similarity_in_candidates = 0.0
         database_length = len(database)
@@ -240,11 +274,15 @@ class GeneSimilarityMatch:
                 self.lock.release()
                 new_solved = 0
 
+            if len(candidates) > CandidateClearSize:
+                candidates.sort(key=lambda arg: -arg.weighted_similarity)
+                candidates = candidates[:self.top_k]
         while len(buff) > 0:
             update_candidate_list(None, buff, candidates, 1)
         self.lock.acquire()
         self.solved += new_solved + gene_length - 1
         self.lock.release()
+        return candidates
 
     def render_similarity_for_candidates(self, gene, candidates):
         result = []
