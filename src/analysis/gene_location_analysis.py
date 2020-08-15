@@ -75,11 +75,11 @@ class GeneLocationAnalysis:
         for kv in match_info:
             if kv.find(':') >= 0:
                 k, v = kv.split(':')
-                if k.find('match_format') >= 0:
+                if k.find('consistency_match_format') >= 0:
                     match_format = v.strip()
-            elif kv.find('consistency') >= 0:
+            elif kv.find('consistency_similarity') >= 0:
                 k, v = kv.split('\t')
-                best_cnt = int(v.strip())
+                best_cnt = int(float(v.strip()))
         cur_cnt = 0
         start = None
         step = 1 if data['start'] < data['end'] else -1
@@ -103,7 +103,10 @@ class GeneLocationAnalysis:
                 for match_info_data in match_info:
                     if match_info_data.find(':') >= 0:
                         k, v = match_info_data.split(':')
-                        output.append(k + ': ' + v.strip()[start:end + 1])
+                        if k.find('consistency') >= 0:
+                            output.append(k + ': ' + v.strip()[start:end + 1])
+                        else:
+                            output.append(k + ': ' + v.strip())
                     else:
                         k, v = match_info_data.split('\t')
                         output.append(k + '\t' + v)

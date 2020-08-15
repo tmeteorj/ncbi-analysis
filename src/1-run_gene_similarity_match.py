@@ -15,7 +15,7 @@ match algorithm:
 (2) direct_match     :　compare each gene one by one
 (3) consistency    :  compare each gene one by one, and the longest matched sequence has the most top priority
 """
-match_algorithm = 'text_distance'
+weighted = [1, 1, 1]
 
 # only consider of the best gene in the range of candidate_distance
 candidate_distance = 5
@@ -23,10 +23,9 @@ candidate_distance = 5
 top_k = 500
 # analysis 2 gene at the same time
 batch_size = 2
-# ignore gene sequence whose similarity is less than min_similarity
-min_similarity = 0.01
 # ignore mismatch with patience 2
 patience = 2
+
 
 ecocyc_file_name = 'Ecocyc_NC_000913.txt'
 
@@ -37,11 +36,10 @@ if __name__ == '__main__':
         data_path = os.path.join(ExperimentConfig.rna_download_directory, data_name)
         similarity_match = GeneSimilarityMatch(gene_path, data_path, ExperimentConfig.output_directory,
                                                top_k=top_k,
-                                               match_algorithm=match_algorithm,
                                                candidate_distance=candidate_distance,
                                                batch_size=batch_size,
-                                               min_similarity=min_similarity,
-                                               patience=patience)
+                                               patience=patience,
+                                               weighted=weighted)
         similarity_match.run()
 
         gene_location_analysis = GeneLocationAnalysis(similarity_match.result_path, ecocyc_file_path,
