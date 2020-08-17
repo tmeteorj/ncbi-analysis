@@ -8,7 +8,7 @@ from utils.str_util import StrConverter
 class LocationReorder:
     location_path: str
     index_path: str
-    output_dir: str
+    output_directory: str
 
     def __post_init__(self):
         file_name = os.path.basename(self.location_path)
