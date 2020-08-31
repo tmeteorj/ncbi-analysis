@@ -13,6 +13,7 @@ class GeneLocationAnalysis:
     input_file_path: str
     ecocyc_file_path: str
     output_directory: str
+    process_sub_data: bool = True
 
     def __post_init__(self):
         self.ecocyc_data_loader = EcocycDataLoader(self.ecocyc_file_path)
@@ -54,20 +55,21 @@ class GeneLocationAnalysis:
                 for location_info in data['location_result']:
                     fw.write(location_info + '\n')
                 fw.write('\n')
-        with open(self.sub_result_path, 'w', encoding='utf8') as fw:
-            for idx, data in enumerate(todo_list):
-                for sub_idx, sub_data in enumerate(self.extract_sub_data(data)):
-                    self.process_one_data(sub_data)
-                    fw.write('(%d-%d)\n' % (idx + 1, sub_idx + 1))
-                    fw.write(sub_data['header'] + '\n')
-                    fw.write('Original Position\t' + sub_data['left'] + '\t' + sub_data['right'] + '\n')
-                    fw.write(sub_data['match_info'] + '\n')
-                    fw.write(sub_data['direction'] + '\n')
-                    for line in sub_data['additional']:
-                        fw.write(line + '\n')
-                    for location_info in sub_data['location_result']:
-                        fw.write(location_info + '\n')
-                    fw.write('\n')
+        if self.process_sub_data:
+            with open(self.sub_result_path, 'w', encoding='utf8') as fw:
+                for idx, data in enumerate(todo_list):
+                    for sub_idx, sub_data in enumerate(self.extract_sub_data(data)):
+                        self.process_one_data(sub_data)
+                        fw.write('(%d-%d)\n' % (idx + 1, sub_idx + 1))
+                        fw.write(sub_data['header'] + '\n')
+                        fw.write('Original Position\t' + sub_data['left'] + '\t' + sub_data['right'] + '\n')
+                        fw.write(sub_data['match_info'] + '\n')
+                        fw.write(sub_data['direction'] + '\n')
+                        for line in sub_data['additional']:
+                            fw.write(line + '\n')
+                        for location_info in sub_data['location_result']:
+                            fw.write(location_info + '\n')
+                        fw.write('\n')
 
     def extract_sub_data(self, data):
         match_info = data['match_info'].split('\n')

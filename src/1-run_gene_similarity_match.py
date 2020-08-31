@@ -6,16 +6,17 @@ from analysis.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 
 # the file you want to run
-gene_match_names = ['dsrA_antisense.txt']
+gene_match_names = ['14ibsc.txt']
 data_name = 'NC_000913.3.txt'
 
 """
 match algorithm:
 (1) text_distance  :  the minimum step to change one sequence to other sequence 
-(2) direct_match     :　compare each gene one by one
+(2) direct_match   :　compare each gene one by one
 (3) consistency    :  compare each gene one by one, and the longest matched sequence has the most top priority
+(4) pattern        :  only find gene match some pattern
 """
-weighted = [3, 1, 2]
+weighted = [0, 0, 0, 1]
 # only consider of the best gene in the range of candidate_distance
 candidate_distance = 5
 # output top 500 sequence
@@ -24,7 +25,22 @@ top_k = 500
 batch_size = 2
 # ignore mismatch with patience 2
 patience = 2
-
+conditions = {
+    'must': [{
+        'offset': 0,
+        'length': 4
+    }, {
+        'offset': -4,
+        'length': 4
+    }],
+    'optional': [{
+        'offset': 4,
+        'length': 1
+    }, {
+        'offset': -5,
+        'length': 1
+    }]
+}
 ecocyc_file_name = 'Ecocyc_NC_000913.txt'
 
 if __name__ == '__main__':
@@ -37,9 +53,11 @@ if __name__ == '__main__':
                                                candidate_distance=candidate_distance,
                                                batch_size=batch_size,
                                                patience=patience,
-                                               weighted=weighted)
+                                               weighted=weighted,
+                                               conditions=conditions)
         similarity_match.run()
 
         gene_location_analysis = GeneLocationAnalysis(similarity_match.result_path, ecocyc_file_path,
-                                                      ExperimentConfig.output_directory)
+                                                      ExperimentConfig.output_directory,
+                                                      process_sub_data=weighted[2] > 0)
         gene_location_analysis.run()

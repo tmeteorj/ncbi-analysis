@@ -21,10 +21,25 @@ class MatchAlgorithm(Enum):
     text_distance = 0
     direct_match = 1
     consistency = 2
+    pattern = 3
 
     @staticmethod
     def get_all_items():
-        return [MatchAlgorithm.text_distance, MatchAlgorithm.direct_match, MatchAlgorithm.consistency]
+        return [MatchAlgorithm.text_distance, MatchAlgorithm.direct_match, MatchAlgorithm.consistency,
+                MatchAlgorithm.pattern]
+
+    @staticmethod
+    def get_match_algorithm_by_name(similarity_name):
+        if similarity_name.find('text') >= 0:
+            return MatchAlgorithm.text_distance
+        elif similarity_name.find('direct') >= 0:
+            return MatchAlgorithm.direct_match
+        elif similarity_name.find('consistency') >= 0:
+            return MatchAlgorithm.consistency
+        elif similarity_name.find('pattern') >= 0:
+            return MatchAlgorithm.pattern
+        else:
+            raise ValueError(similarity_name)
 
 
 @dataclass
@@ -99,6 +114,56 @@ class HasReturnThread(threading.Thread):
             return None
 
 
+class MatchPattern:
+    must_pattern: str = None
+    option_patterns: list = None
+    must_score: int = 0
+
+    def __init__(self, rna, conditions):
+        must = conditions['must']
+        self.must_pattern, self.must_score = self.generate_pattern(rna, must)
+        self.option_patterns = []
+        for optional in conditions['optional']:
+            optional = [optional]
+            optional.extend(must)
+            optional_pattern, optioanl_score = self.generate_pattern(rna, optional)
+            optioanl_score -= self.must_score
+            self.option_patterns.append((optional_pattern, optioanl_score))
+
+    def generate_pattern(self, rna, conditions):
+        rna_len = len(rna)
+        conditions.sort(key=lambda arg: arg['offset'] if arg['offset'] >= 0 else rna_len + arg['offset'])
+        gen_pattern = ''
+        score = 0
+        index = 0
+        for condition in conditions:
+            offset, length = condition['offset'], condition['length']
+            if offset < 0:
+                offset = rna_len + offset
+            if offset == 0:
+                gen_pattern += '^'
+            if offset > index:
+                gen_pattern += '.+'
+            gen_pattern += self.update_regex(rna[offset:offset + length])
+            index = offset + length
+            if index == rna_len:
+                gen_pattern += '$'
+            score += length
+        if index != rna_len:
+            gen_pattern += '.+'
+        return gen_pattern, score
+
+    def update_regex(self, pattern: str):
+        up_pattern = ''
+        pattern = pattern.lower()
+        for c in pattern:
+            if c == 'c':
+                up_pattern += '(c|t)'
+            else:
+                up_pattern += c
+        return up_pattern
+
+
 @dataclass
 class GeneSimilarityMatch:
     gene_path: str
@@ -109,6 +174,7 @@ class GeneSimilarityMatch:
     batch_size: int = 5
     patience: int = 0
     weighted: List[int] = field(default_factory=list)
+    conditions: dict = None
 
     def __post_init__(self):
         self.data_name = os.path.basename(self.data_path)
@@ -125,7 +191,7 @@ class GeneSimilarityMatch:
         self.solved = 0
         self.total = 0
         self.weighted_sum = sum(self.weighted)
-        assert self.weighted_sum > 0 and len(self.weighted) == 3
+        assert self.weighted_sum > 0 and len(self.weighted) == 4
 
     def run(self):
         self.gene_reader.build_information()
@@ -167,6 +233,7 @@ class GeneSimilarityMatch:
         t2.join()
 
         candidates = t1.get_result() + t2.get_result()
+        candidates = list(filter(lambda arg: arg.weighted_similarity > 0, candidates))
         candidates.sort(key=lambda arg: -arg.weighted_similarity)
         results = self.render_similarity_for_candidates(gene, candidates[:self.top_k])
         self.lock.acquire()
@@ -174,11 +241,14 @@ class GeneSimilarityMatch:
         headers = [
             'name',
             'direction',
-            'weighted_similarity',
-            'text_distance_similarity',
-            'direct_match_similarity',
-            'consistency_similarity',
-            'original      :']
+            'weighted_similarity'
+        ]
+        for idx, similarity_name in enumerate(
+                ['text_distance_similarity', 'direct_match_similarity', 'consistency_similarity',
+                 'pattern_similarity']):
+            if self.weighted[idx] > 0:
+                headers.append(similarity_name)
+        headers.append('original      :')
         sequence_headers = [
             'gene_format   :',
             'target_format :',
@@ -190,18 +260,22 @@ class GeneSimilarityMatch:
                 'name': name,
                 'direction': '-' if candidate.is_reverse else '+',
                 'weighted_similarity': '%.2f' % candidate.weighted_similarity,
-                'text_distance_similarity': '%.2f' % candidate.similarity_dict[MatchAlgorithm.text_distance],
-                'direct_match_similarity': '%.2f' % candidate.similarity_dict[MatchAlgorithm.direct_match],
-                'consistency_similarity': '%.2f' % candidate.similarity_dict[MatchAlgorithm.consistency],
                 'original      :': gene
             }
+            for idx, similarity_name in enumerate(
+                    ['text_distance_similarity', 'direct_match_similarity', 'consistency_similarity',
+                     'pattern_similarity']):
+                if self.weighted[idx] > 0:
+                    attribute[similarity_name] = '%.2f' % candidate.similarity_dict[
+                        MatchAlgorithm.get_match_algorithm_by_name(similarity_name)]
             sequence_content = []
             offset = 1
-            for match_algorithm in MatchAlgorithm.get_all_items():
-                for sequence_header, value in zip(sequence_headers, candidate_result[offset:offset + 3]):
-                    value = ''.join(value)
-                    sequence_content.append(match_algorithm.name + "_" + sequence_header + '=' + value)
-                offset += 3
+            for idx, match_algorithm in enumerate(MatchAlgorithm.get_all_items()):
+                if self.weighted[idx] > 0:
+                    for sequence_header, value in zip(sequence_headers, candidate_result[offset:offset + 3]):
+                        value = ''.join(value)
+                        sequence_content.append(match_algorithm.name + "_" + sequence_header + '=' + value)
+                    offset += 3
 
             fw.write('>%s/%s-%s\t%s,%s\n' % (
                 self.data_name.replace(".txt", ''),
@@ -223,12 +297,14 @@ class GeneSimilarityMatch:
         new_solved = 0
         similarity_heap = []
         buff = deque()
+        match_pattern = MatchPattern(gene, self.conditions) if self.conditions else None
         for start in range(limitation):
             weighted_similarity, similarity_dict = count_similarity(weighted=self.weighted,
                                                                     gene=gene,
                                                                     database=database,
                                                                     offset=start,
-                                                                    max_patience=self.patience)
+                                                                    max_patience=self.patience,
+                                                                    match_pattern=match_pattern)
             new_candidate = MatchCandidate(
                 left=start,
                 right=start + gene_length - 1,
@@ -289,9 +365,10 @@ class GeneSimilarityMatch:
         for candidate in candidates:
             database = self.rev_dna_code if candidate.is_reverse else self.dna_code
             candidate_result = [candidate]
-            for match_algorithm in MatchAlgorithm.get_all_items():
-                candidate_result.extend(
-                    self.render_target_dna_sequence(match_algorithm, gene, database, candidate.original_match_left))
+            for idx, match_algorithm in enumerate(MatchAlgorithm.get_all_items()):
+                if self.weighted[idx] > 0:
+                    candidate_result.extend(
+                        self.render_target_dna_sequence(match_algorithm, gene, database, candidate.original_match_left))
             result.append(candidate_result)
         return result
 
@@ -354,6 +431,14 @@ class GeneSimilarityMatch:
             while cur_pos < tot:
                 sequence.append('.')
                 cur_pos += 1
+        elif match_algorithm == MatchAlgorithm.pattern:
+            for i in range(tot):
+                sequence_gene.append(gene[i])
+                sequence_target.append(database[i + offset])
+                if not should_change(gene[i], database[i + offset]):
+                    sequence.append('*')
+                else:
+                    sequence.append('.')
         return sequence_gene, sequence_target, sequence
 
 
@@ -400,7 +485,7 @@ def count_acgt(gene):
     return gene_dict
 
 
-def count_similarity(weighted, gene, database, offset, max_patience=2):
+def count_similarity(weighted, gene, database, offset, max_patience=2, match_pattern=None):
     tot = len(gene)
     weighted_similarity = 0.0
     similarity = {}
@@ -418,6 +503,8 @@ def count_similarity(weighted, gene, database, offset, max_patience=2):
             score = tot - score
         elif match_algorithm == MatchAlgorithm.consistency:
             score, score_queue, score_merge_idx = compute_consistency_similarity(gene, database, offset, max_patience)
+        elif match_algorithm == MatchAlgorithm.pattern:
+            score = compute_pattern_similarity(gene, database, offset, match_pattern)
         similarity[match_algorithm] = score
         weighted_similarity += score * weight
     weighted_similarity = weighted_similarity / sum(weighted)
@@ -469,6 +556,20 @@ def compute_consistency_similarity(gene: str, database: str, offset: int, max_pa
                     score = total_score
                     score_merge_idx = [idx, idx + width]
     return score, score_queue, score_merge_idx
+
+
+def compute_pattern_similarity(gene: str, database: str, offset: int, match_pattern: MatchPattern):
+    if match_pattern is None:
+        return 0
+    gene_len = len(gene)
+    target_gene = database[offset:offset + gene_len]
+    if not re.match(match_pattern.must_pattern, target_gene):
+        return 0
+    score = match_pattern.must_score
+    for optional_pattern in match_pattern.option_patterns:
+        if re.match(optional_pattern[0], target_gene):
+            score += optional_pattern[1]
+    return score
 
 
 def should_change(a, b):
