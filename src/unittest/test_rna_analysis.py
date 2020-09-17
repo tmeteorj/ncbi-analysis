@@ -2,9 +2,9 @@ import os
 import unittest
 from urllib import request
 
-from analysis.cluster_match import ClusterMatcher
-from analysis.gene_extract import GeneExtract
-from analysis.neighbor_analysis import NeighborAnalysis
+from experiment.cluster_match import ClusterMatcher
+from experiment.gene_extract import GeneExtract
+from experiment.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 from utils.data_download_util import DataDownloadTool
 from utils.gene_file_util import GeneSegment, GeneFileReader

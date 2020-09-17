@@ -169,7 +169,7 @@ class GeneFileReader:
 
 if __name__ == '__main__':
 
-    file_path = 'D:/Workspace/ncbi-analysis/data/rna_analysis/rna_download_data/NC_000913.3.txt'
+    file_path = 'D:/Workspace/ncbi-experiment/data/rna_analysis/rna_download_data/NC_000913.3.txt'
     gene = GeneFileReader(file_path)
     gene.build_information()
     b_dict = {}
@@ -177,9 +177,9 @@ if __name__ == '__main__':
         if gene_segment.gene_id:
             b_dict[gene_segment.locus_tag] = [gene_segment.gene, gene_segment.gene_id]
     heads = None
-    with open('D:/Workspace/ncbi-analysis/R/Path_Information_Sample.txt', 'w', encoding='utf8') as fw:
+    with open('D:/Workspace/ncbi-experiment/R/Path_Information_Sample.txt', 'w', encoding='utf8') as fw:
         fw.write('PathId\tPath Name\tLocusTag\tGene\tGeneId\n')
-        for line in open('D:/Workspace/ncbi-analysis/R/ID_Eco_Path.txt', 'r', encoding='utf8'):
+        for line in open('D:/Workspace/ncbi-experiment/R/ID_Eco_Path.txt', 'r', encoding='utf8'):
             items = line.strip().split('\t')
             if heads is None:
                 heads = items

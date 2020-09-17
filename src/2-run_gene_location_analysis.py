@@ -1,6 +1,6 @@
 import os
 
-from analysis.gene_location_analysis import GeneLocationAnalysis
+from experiment.gene_location_analysis import GeneLocationAnalysis
 from experiment_config import ExperimentConfig
 
 location_analysis_names = ['dinQ_antisense_consistency_match_result.txt']

@@ -1,6 +1,6 @@
 import os
 
-from analysis.gene_location_analysis import format_data_to_tsv
+from experiment.gene_location_analysis import format_data_to_tsv
 from experiment_config import ExperimentConfig
 from utils.ecocyc_data_loader import EcocycDataLoader
 

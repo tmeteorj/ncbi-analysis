@@ -1,5 +1,5 @@
-from analysis.cluster_match import ClusterMatcher
-from analysis.neighbor_analysis import NeighborAnalysis
+from experiment.cluster_match import ClusterMatcher
+from experiment.neighbor_analysis import NeighborAnalysis
 from experiment_config import *
 
 fna_name = '7a_utr_bacteria.fna'

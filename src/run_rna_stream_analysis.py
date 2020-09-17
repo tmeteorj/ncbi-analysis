@@ -1,4 +1,4 @@
-from analysis.gene_stream_analysis import GeneStreamAnalysis
+from experiment.gene_stream_analysis import GeneStreamAnalysis
 from experiment_config import *
 
 gene_file_name = 'NC_000913.3.txt'

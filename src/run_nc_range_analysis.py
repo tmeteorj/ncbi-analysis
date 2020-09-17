@@ -1,4 +1,4 @@
-from analysis.gene_range_analysis import GeneRangeExtract
+from experiment.gene_range_analysis import GeneRangeExtract
 from experiment_config import *
 
 nc_gene_file_name = 'NC_000913.3.txt'

@@ -1,6 +1,6 @@
 import unittest
 
-from analysis.gene_similarity_match import count_similarity, fast_skip, count_acgt
+from experiment.gene_similarity_match import count_similarity, fast_skip, count_acgt
 
 
 class TestSimilarityMatch(unittest.TestCase):

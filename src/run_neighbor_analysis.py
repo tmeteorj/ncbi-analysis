@@ -1,4 +1,4 @@
-from analysis.neighbor_analysis import NeighborAnalysis
+from experiment.neighbor_analysis import NeighborAnalysis
 from experiment_config import *
 
 file_name = 'gene_14_match_result.txt'

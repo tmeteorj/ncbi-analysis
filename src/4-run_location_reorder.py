@@ -1,6 +1,6 @@
 import os
 
-from analysis.location_reorder import LocationReorder
+from experiment.location_reorder import LocationReorder
 from experiment_config import ExperimentConfig
 
 index_file_name = 'test_index.txt'

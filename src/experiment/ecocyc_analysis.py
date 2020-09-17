@@ -63,7 +63,7 @@ class EcocycAnalysis:
         self.generate_header(gene_items[0])
         total_cnt = len(gene_items) - 1
         self.logger.info_with_expire_time(
-            'Ecocyc analysis %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
+            'Ecocyc experiment %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
             solve_cnt, total_cnt)
         for line in gene_items[1:]:
             try:
@@ -105,7 +105,7 @@ class EcocycAnalysis:
                 fail_cnt += 1
             solve_cnt += 1
             self.logger.info_with_expire_time(
-                'Ecocyc analysis %d/%d=%.2f%%, success_cnt=%d, fail_cnt=%d, json_download_fail=%d' % (
+                'Ecocyc experiment %d/%d=%.2f%%, success_cnt=%d, fail_cnt=%d, json_download_fail=%d' % (
                     solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt,
                     succ_cnt, fail_cnt, fail_json_cnt),
                 solve_cnt, total_cnt)
@@ -148,7 +148,7 @@ class EcocycAnalysis:
         items = self.extract_urls_from_file()
         total_cnt = len(items)
         self.logger.info_with_expire_time(
-            'Ecocyc analysis %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
+            'Ecocyc experiment %d/%d=%.2f%%' % (solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt),
             solve_cnt, total_cnt)
         for url, mock_name, title in items:
             try:
@@ -179,7 +179,7 @@ class EcocycAnalysis:
                 fail_cnt += 1
             solve_cnt += 1
             self.logger.info_with_expire_time(
-                'Ecocyc analysis %d/%d=%.2f%%, success_cnt=%d, fail_cnt=%d, json_download_fail=%d' % (
+                'Ecocyc experiment %d/%d=%.2f%%, success_cnt=%d, fail_cnt=%d, json_download_fail=%d' % (
                     solve_cnt, total_cnt, solve_cnt * 100.0 / total_cnt,
                     succ_cnt, fail_cnt, fail_json_cnt),
                 solve_cnt, total_cnt)

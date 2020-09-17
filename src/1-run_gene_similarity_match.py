@@ -1,8 +1,8 @@
 import os
 
-from analysis.gene_location_analysis import GeneLocationAnalysis
-from analysis.gene_similarity_match import GeneSimilarityMatch
-from analysis.neighbor_analysis import NeighborAnalysis
+from experiment.gene_location_analysis import GeneLocationAnalysis
+from experiment.gene_similarity_match import GeneSimilarityMatch
+from experiment.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 
 # the file you want to run
@@ -21,7 +21,7 @@ weighted = [0, 0, 0, 1]
 candidate_distance = 5
 # output top 500 sequence
 top_k = 500
-# analysis 2 gene at the same time
+# experiment 2 gene at the same time
 batch_size = 2
 # ignore mismatch with patience 2
 patience = 2

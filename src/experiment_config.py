@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 
 class ExperimentConfig:
@@ -28,11 +29,11 @@ class ExperimentConfig:
     MAX_ITERATION_TIME = 100
     MAX_THREAD_NUM = 16
 
-    root_directory = os.sep.join(os.getcwd().split(os.sep)[:-1])
-    data_directory = os.path.join(root_directory, 'data', 'rna_analysis')
-    output_directory = os.path.join(root_directory, 'data', 'rna_analysis_result')
-    rna_download_directory = os.path.join(data_directory, 'rna_download_data')
-    ecocyc_download_directory = os.path.join(data_directory, 'ecocyc_download_data')
+    root_directory = Path(__file__).joinpath('../..').resolve()
+    data_directory = root_directory / 'data' / 'rna_analysis'
+    output_directory = root_directory / 'data' / 'rna_analysis_result'
+    rna_download_directory = data_directory / 'rna_download_data'
+    ecocyc_download_directory = data_directory / 'ecocyc_download_data'
 
     @staticmethod
     def disable_repeat_region():

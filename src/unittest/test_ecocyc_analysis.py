@@ -4,7 +4,7 @@ import os
 import unittest
 from urllib import request
 
-from analysis.ecocyc_analysis import EcocycAnalysis
+from experiment.ecocyc_analysis import EcocycAnalysis
 from utils.gene_promoter_util import GeneTUInfo, filter_same_direction, get_all_promoters, get_target_promoter
 from utils.html_parser_util import EcocycHTMLParser, GoHTMLParser
 
