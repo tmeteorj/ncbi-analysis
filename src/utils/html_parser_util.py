@@ -9,7 +9,43 @@ ecocyc_id_script_prefix = 'window.location.replace(\'/gene?'
 inf = 1000000
 
 
-class EcocycHTMLParser(HTMLParser):
+class BaseHTMLParser(HTMLParser):
+    @staticmethod
+    def extract_map_position(data):
+        start = data.index('[')
+        end = data.index(']')
+        data = data[start + 1:end]
+        if data.find('<-') > 0:
+            end, start = data.split('<-')
+        else:
+            start, end = data.split('->')
+        start, end = int(start.replace(',', '')), int(end.replace(',', ''))
+        return start, end
+
+    @staticmethod
+    def extract_gene_name(data):
+        return re.sub(r'<\w+>', '', data)
+
+    @staticmethod
+    def extract_id_from_script(data: str):
+        if data.find('gene:\'') < 0:
+            return None
+        start = data.index('gene:\'') + 6
+        end = data.index('\'', start)
+        return data[start:end]
+
+    @staticmethod
+    def extract_id_from_data(data):
+        items = re.split(r'\'|\?|&|\"', data)
+        for kv in items:
+            if kv.find('=') > 0:
+                k, v = kv.split('=', 1)
+                if k == 'id':
+                    return v
+        return None
+
+
+class EcocycHTMLParser(BaseHTMLParser):
     def __init__(self, do_extract_id=False, gene_name=None, do_extract_summary=False):
         super(EcocycHTMLParser, self).__init__()
         self.last_td_data = None
@@ -98,42 +134,8 @@ class EcocycHTMLParser(HTMLParser):
                 self.ecocyc_id = self.extract_id_from_script(data)
             logger.debug("Data     :%s" % data)
 
-    @staticmethod
-    def extract_map_position(data):
-        start = data.index('[')
-        end = data.index(']')
-        data = data[start + 1:end]
-        if data.find('<-') > 0:
-            end, start = data.split('<-')
-        else:
-            start, end = data.split('->')
-        start, end = int(start.replace(',', '')), int(end.replace(',', ''))
-        return start, end
 
-    @staticmethod
-    def extract_gene_name(data):
-        return re.sub(r'<\w+>', '', data)
-
-    @staticmethod
-    def extract_id_from_script(data: str):
-        if data.find('gene:\'') < 0:
-            return None
-        start = data.index('gene:\'') + 6
-        end = data.index('\'', start)
-        return data[start:end]
-
-    @staticmethod
-    def extract_id_from_data(data):
-        items = re.split(r'\'|\?|&|\"', data)
-        for kv in items:
-            if kv.find('=') > 0:
-                k, v = kv.split('=', 1)
-                if k == 'id':
-                    return v
-        return None
-
-
-class UrlHTMLParser(HTMLParser):
+class UrlHTMLParser(BaseHTMLParser):
     def __init__(self):
         super(UrlHTMLParser, self).__init__()
         self.ecocycs = []
@@ -167,3 +169,49 @@ class UrlHTMLParser(HTMLParser):
                 if k in ['id', 'object']:
                     return v
         return None
+
+
+class GoHTMLParser(BaseHTMLParser):
+    def __init__(self):
+        super(GoHTMLParser, self).__init__()
+
+        self.tb_depth = 0
+        self.tag_stack = []
+        self.tr_depth = []
+        self.td_depth = []
+        self.go_table = []
+
+    def handle_starttag(self, tag, attrs):
+        self.tag_stack.append(tag)
+        tag = tag.strip()
+        if tag == 'table':
+            self.tb_depth += 1
+            self.tr_depth.append(0)
+            self.td_depth.append(0)
+            if self.tb_depth == 1 and len(list(filter(lambda arg: arg[0] == 'class', attrs))) == 0:
+                self.tb_depth = 1000
+        elif tag == 'td':
+            self.td_depth[-1] += 1
+        elif tag == 'tr':
+            self.tr_depth[-1] += 1
+            self.td_depth[-1] = 0
+        logger.debug("Start tag  :%s" % tag)
+
+    def handle_endtag(self, tag):
+        self.tag_stack.pop(-1)
+        if tag == 'table':
+            self.tb_depth -= 1
+            self.tr_depth.pop(-1)
+            self.td_depth.pop(-1)
+            if self.tb_depth == 0:
+                self.tb_depth = 1000
+        logger.debug("End tag  :%s" % tag)
+
+    def handle_data(self, data):
+        if self.tb_depth == 1 and self.td_depth[-1] == 1 and self.tag_stack[-1] == 'td':
+            data = re.sub(r'^\s+', '', data)
+            data = re.sub(r'(\s|:)+$', '', data)
+            self.go_table.append([data, ''])
+        elif self.tb_depth == 2 and self.td_depth[-1] == 2 and self.tag_stack[-1] == 'a':
+            self.go_table[-1][-1] = (self.go_table[-1][-1] + ',' + data.strip()).lstrip(',')
+        logger.debug("Data     :%s" % data)

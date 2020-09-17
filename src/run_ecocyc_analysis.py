@@ -1,16 +1,17 @@
-from analysis.gene_extract import GeneExtract
 from analysis.ecocyc_analysis import EcocycAnalysis
+from analysis.gene_extract import GeneExtract
 from experiment_config import *
 
 extract_gene_file_name = 'NC_000913.3.txt'
-ecocyc_gene_files = ['20200306.txt']
+ecocyc_gene_files = ['20200917-sample.txt']
 ecocyc_params = {
     'from_gene_names': True,
-    'output_best_promoter': True,
-    'output_gene_sequence': True,
-    'output_detail_information': True,
-    'analysis_promoter': True,
-    'if_get_summary': True
+    'output_best_promoter': False,
+    'output_gene_sequence': False,
+    'output_detail_information': False,
+    'analysis_promoter': False,
+    'if_get_summary': False,
+    'if_get_go_table': True
 }
 from_gene_names = True
 output_best_promoter = True

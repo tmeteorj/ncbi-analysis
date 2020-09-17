@@ -7,7 +7,7 @@ from urllib import request
 
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_promoter_util import GeneTUInfo, get_target_promoter, get_all_promoters
-from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
+from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser, GoHTMLParser
 from utils.str_util import StrConverter
 
 
@@ -25,6 +25,7 @@ class EcocycAnalysis:
         self.output_detail_information = self.ecocyc_params['output_detail_information']
         self.analysis_promoter = self.ecocyc_params['analysis_promoter']
         self.if_get_summary = self.ecocyc_params['if_get_summary']
+        self.if_get_go_table = self.ecocyc_params['if_get_go_table']
         self.sequence_start_idx = None
         self.sequence_end_idx = None
         self.headers = {}
@@ -88,6 +89,9 @@ class EcocycAnalysis:
                                            gene_name=result['gene'])
                     if not flag_json:
                         fail_json_cnt += 1
+                if self.if_get_go_table:
+                    self.write_body(ecocyc_id=ecocyc_id, page_type='go')
+                    self.analysis_xml(prefix='go_', ecocyc_id=ecocyc_id, result=result)
                 if result['gene'] != gene_name:
                     result['gene'] = gene_name + '->' + result['gene']
                 fw_result.write(self.extract_output(result) + '\n')
@@ -219,7 +223,9 @@ class EcocycAnalysis:
             elif page_type == "summary":
                 urls = ['https://biocyc.org/gene-tab?id=%s&orgid=ECOLI&tab=SUMMARY' % ecocyc_id]
                 file_path = os.path.join(self.download_directory, 'summary_' + ecocyc_id + '.html')
-
+            elif page_type == "go":
+                urls = ['https://biocyc.org/gene-tab?id=%s&orgid=ECOLI&tab=GO' % ecocyc_id]
+                file_path = os.path.join(self.download_directory, 'go_' + ecocyc_id + '.html')
         else:
             raise ValueError('Parameter not correct')
         if os.path.exists(file_path):
@@ -276,6 +282,10 @@ class EcocycAnalysis:
             parser = EcocycHTMLParser(do_extract_summary=True)
             parser.feed(''.join(body))
             result['summary'] = parser.extract_attr['summary']
+        elif prefix == 'go_':
+            parser = GoHTMLParser()
+            parser.feed(''.join(body))
+            result['go'] = ';'.join(['%s=%s' % (k, v) for k, v in parser.go_table])
         else:
             parser = EcocycHTMLParser()
             parser.feed(''.join(body))

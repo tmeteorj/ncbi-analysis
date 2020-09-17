@@ -6,7 +6,7 @@ from urllib import request
 
 from analysis.ecocyc_analysis import EcocycAnalysis
 from utils.gene_promoter_util import GeneTUInfo, filter_same_direction, get_all_promoters, get_target_promoter
-from utils.html_parser_util import EcocycHTMLParser, UrlHTMLParser
+from utils.html_parser_util import EcocycHTMLParser, GoHTMLParser
 
 
 class TestEcocycAnalysis(unittest.TestCase):
@@ -69,17 +69,6 @@ class TestEcocycAnalysis(unittest.TestCase):
             attr = link[6]
             if attr.find('fdhFp') > 0:
                 print(attr)
-
-    def test_urls_extract(self):
-        input_path = os.path.join(self.data_directory, 'transcription_ul.txt')
-        with open(input_path, 'r', encoding='utf8') as fr:
-            body = ''.join(fr.readlines())
-        parser = UrlHTMLParser()
-        parser.feed(body)
-        for url, mock_name, title in parser.ecocycs:
-            if mock_name is None:
-                print(url)
-        return parser.ecocycs
 
     def test_promoter_position_extract(self):
         gene_name = 'napF'
@@ -153,8 +142,8 @@ class TestEcocycAnalysis(unittest.TestCase):
             self.ecocyc_analysis.write_body(gene_name=target_gene)
             ecocyc_id = self.ecocyc_analysis.get_ecocyc_id(prefix='gene_', gene_name=target_gene)
             self.assertIsNotNone(ecocyc_id)
-            self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, page_type=True)
-            flag_json = self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, page_type=False)
+            self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, page_type='promoter')
+            flag_json = self.ecocyc_analysis.write_body(ecocyc_id=ecocyc_id, page_type='tu')
             self.assertTrue(flag_json)
             _ = self.ecocyc_analysis.analysis_xml(prefix='tu_', ecocyc_id=ecocyc_id, result=result)
             self.ecocyc_analysis.analysis_json(prefix='promoter_', ecocyc_id=ecocyc_id, result=result,
@@ -189,3 +178,9 @@ class TestEcocycAnalysis(unittest.TestCase):
         parser.feed(body)
         summary = parser.extract_attr['summary']
         self.assertIsNotNone(summary)
+
+    def test_go_extract(self):
+        body = self.get_body('EG30018', 'go_')
+        parser = GoHTMLParser()
+        parser.feed(body)
+        self.assertEqual(2, len(parser.go_table))
