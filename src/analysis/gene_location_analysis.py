@@ -3,6 +3,7 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
+from typing import Tuple
 
 from src.utils.ecocyc_data_loader import EcocycDataLoader, EcocycInterRecord
 from src.utils.str_util import StrConverter
@@ -14,6 +15,7 @@ class GeneLocationAnalysis:
     ecocyc_file_path: str
     output_directory: str
     process_sub_data: bool = True
+    filter_sub_span: Tuple[int, int] = None
 
     def __post_init__(self):
         self.ecocyc_data_loader = EcocycDataLoader(self.ecocyc_file_path)
@@ -60,16 +62,37 @@ class GeneLocationAnalysis:
                 for idx, data in enumerate(todo_list):
                     for sub_idx, sub_data in enumerate(self.extract_sub_data(data)):
                         self.process_one_data(sub_data)
-                        fw.write('(%d-%d)\n' % (idx + 1, sub_idx + 1))
-                        fw.write(sub_data['header'] + '\n')
-                        fw.write('Original Position\t' + sub_data['left'] + '\t' + sub_data['right'] + '\n')
-                        fw.write(sub_data['match_info'] + '\n')
-                        fw.write(sub_data['direction'] + '\n')
-                        for line in sub_data['additional']:
-                            fw.write(line + '\n')
-                        for location_info in sub_data['location_result']:
-                            fw.write(location_info + '\n')
-                        fw.write('\n')
+                        if self.pass_filter_sub_location(sub_data):
+                            fw.write('(%d-%d)\n' % (idx + 1, sub_idx + 1))
+                            fw.write(sub_data['header'] + '\n')
+                            fw.write('Original Position\t' + sub_data['left'] + '\t' + sub_data['right'] + '\n')
+                            fw.write(sub_data['match_info'] + '\n')
+                            fw.write(sub_data['direction'] + '\n')
+                            for line in sub_data['additional']:
+                                fw.write(line + '\n')
+                            for location_info in sub_data['location_result']:
+                                fw.write(location_info + '\n')
+                            fw.write('\n')
+
+    def pass_filter_sub_location(self, sub_data):
+        def extract_gene_start_end(gene_sequence):
+            items = re.split(r'\t|\n', gene_sequence)
+            for item in items:
+                if re.match('\d+-\d+', item):
+                    return tuple(map(int, item.split('-')))
+            return None, None
+
+        if not self.filter_sub_span:
+            return True
+        if sub_data['location_result'][0].startswith('5\''):
+            gene_start, gene_end = extract_gene_start_end(sub_data['location_result'][0])
+            if gene_start < gene_end:
+                span_start, span_end = gene_start - self.filter_sub_span[0], gene_start + self.filter_sub_span[1]
+                return span_start <= sub_data['start'] <= sub_data['end'] <= span_end
+            else:
+                span_start, span_end = gene_start + self.filter_sub_span[0], gene_start - self.filter_sub_span[1]
+                return span_start >= sub_data['start'] >= sub_data['end'] >= span_end
+        return True
 
     def extract_sub_data(self, data):
         match_info = data['match_info'].split('\n')
