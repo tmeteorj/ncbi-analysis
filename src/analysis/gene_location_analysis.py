@@ -266,7 +266,7 @@ def interval_check(record_left, record_right, left, right):
         raise ValueError("[%d,%d] <-> [%d,%d]" % (record_left, record_right, left, right))
 
 
-def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
+def format_data_to_tsv(input_path, output_path, ecocyc_data_loader, output_promoter):
     headers = ['index', 'weighted_similarity', 'text_distance_similarity',
                'direct_match_similarity', 'consistency_similarity', 'location',
                'gene_name', 'type', 'exonic_gene_sizes', 'product',
@@ -280,7 +280,7 @@ def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
             if len(buff) > 0:
                 data = extract_consistency_record(buff, ecocyc_data_loader)
                 buff.clear()
-                if data is not None:
+                if data is not None and (output_promoter or data.get('type', '') != ''):
                     output = []
                     for header in headers:
                         output.append(data.get(header, ''))
