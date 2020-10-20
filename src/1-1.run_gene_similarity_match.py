@@ -25,6 +25,7 @@ top_k = 500
 batch_size = 2
 # ignore mismatch with patience 2
 patience = 2
+continuous_mismatch_limit = 10
 conditions = {
     'must': [{
         'offset': 0,
@@ -54,7 +55,8 @@ if __name__ == '__main__':
                                                batch_size=batch_size,
                                                patience=patience,
                                                weighted=weighted,
-                                               conditions=conditions)
+                                               conditions=conditions,
+                                               continuous_mismatch_limit=continuous_mismatch_limit)
         similarity_match.run()
 
         gene_location_analysis = GeneLocationAnalysis(similarity_match.result_path, ecocyc_file_path,

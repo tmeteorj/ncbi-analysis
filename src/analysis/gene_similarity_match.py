@@ -175,6 +175,7 @@ class GeneSimilarityMatch:
     patience: int = 0
     weighted: List[int] = field(default_factory=list)
     conditions: dict = None
+    continuous_mismatch_limit: int = None
 
     def __post_init__(self):
         self.data_name = os.path.basename(self.data_path)
@@ -304,7 +305,8 @@ class GeneSimilarityMatch:
                                                                     database=database,
                                                                     offset=start,
                                                                     max_patience=self.patience,
-                                                                    match_pattern=match_pattern)
+                                                                    match_pattern=match_pattern,
+                                                                    continuous_mismatch_limit=self.continuous_mismatch_limit)
             new_candidate = MatchCandidate(
                 left=start,
                 right=start + gene_length - 1,
@@ -485,7 +487,8 @@ def count_acgt(gene):
     return gene_dict
 
 
-def count_similarity(weighted, gene, database, offset, max_patience=2, match_pattern=None):
+def count_similarity(weighted, gene, database, offset, max_patience=2, match_pattern=None,
+                     continuous_mismatch_limit=None):
     tot = len(gene)
     weighted_similarity = 0.0
     similarity = {}
@@ -495,7 +498,7 @@ def count_similarity(weighted, gene, database, offset, max_patience=2, match_pat
         if weight == 0:
             score = 0.0
         elif match_algorithm == MatchAlgorithm.text_distance:
-            score, dp = compute_text_distance_similarity(gene, database, offset)
+            score, dp = compute_text_distance_similarity(gene, database, offset, continuous_mismatch_limit)
         elif match_algorithm == MatchAlgorithm.direct_match:
             score = 0.0
             for i in range(tot):
@@ -511,7 +514,7 @@ def count_similarity(weighted, gene, database, offset, max_patience=2, match_pat
     return weighted_similarity, similarity
 
 
-def compute_text_distance_similarity(gene: str, database: str, offset: int):
+def compute_text_distance_similarity(gene: str, database: str, offset: int, continuous_mismatch_limit: int = None):
     tot = len(gene)
     dp = [[99999 for _ in range(tot + 1)] for _ in range(tot + 1)]
     dp[0][0] = 0
@@ -523,6 +526,29 @@ def compute_text_distance_similarity(gene: str, database: str, offset: int):
             dp[i][j] = min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + should_change(gene_a, gene_b))
             min_step = min(dp[i][j] + abs(i - j), min_step)
     score = float(tot - dp[tot][tot])
+    if continuous_mismatch_limit is not None:
+        i, j = tot, tot
+        mismatch = 0
+        while i > 0 or j > 0:
+            gene_a, gene_b = gene[i - 1] if i > 0 else '.', database[j + offset - 1] if j > 0 else '.'
+            if i > 0 and j > 0 and dp[i][j] == dp[i - 1][j - 1] + should_change(gene[i - 1],
+                                                                                database[j + offset - 1]):
+
+                if should_change(gene[i - 1], database[j + offset - 1]) != 0:
+                    mismatch += 1
+                else:
+                    mismatch = 0
+                i, j = i - 1, j - 1
+            elif dp[i][j] == dp[i - 1][j] + 1:
+                mismatch += 1
+                i -= 1
+            elif dp[i][j] == dp[i][j - 1] + 1:
+                mismatch += 1
+                j -= 1
+            else:
+                raise ValueError('Should not go here!')
+            if mismatch >= continuous_mismatch_limit:
+                return 0, dp
     return score, dp
 
 
