@@ -1,11 +1,12 @@
 class EcocycDataLoader:
-    def __init__(self, ecocyc_data_file):
+    def __init__(self, ecocyc_data_file, output_promoter=False):
         self.ecocyc_data_file = ecocyc_data_file
         self.gene_name_index = {}
         self.records = []
         self.inter_records = []
         self.headers = None
         self.inv_headers = []
+        self.output_promoter = output_promoter
 
     def build_database(self):
         for line in open(self.ecocyc_data_file, 'r', encoding='utf8', errors='ignore'):
@@ -20,7 +21,7 @@ class EcocycDataLoader:
                 continue
             attr = {header: value for header, value in zip(self.inv_headers, items)}
             record = EcocycRecord(attr)
-            direction, inter_records = record.generate_inter_record()
+            direction, inter_records = record.generate_inter_record(self.output_promoter)
             self.records.append(record)
             self.inter_records.extend(inter_records)
             self.gene_name_index[record.gene] = len(self.records) - 1
@@ -62,7 +63,7 @@ class EcocycRecord:
             else:
                 setattr(self, header, attr.get(header, ''))
 
-    def generate_inter_record(self):
+    def generate_inter_record(self, output_promoter: bool = False):
         records = []
         records.append(
             EcocycInterRecord(name=self.gene,
@@ -71,7 +72,7 @@ class EcocycRecord:
                               end=self.map_end_pos,
                               is_gene=True)
         )
-        if self.promoter_name != '':
+        if self.promoter_name != '' and output_promoter:
             records.append(
                 EcocycInterRecord(name=self.promoter_name,
                                   product='',

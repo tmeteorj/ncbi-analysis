@@ -16,9 +16,10 @@ class GeneLocationAnalysis:
     output_directory: str
     process_sub_data: bool = True
     filter_sub_span: Tuple[int, int] = None
+    output_promoter: bool = False
 
     def __post_init__(self):
-        self.ecocyc_data_loader = EcocycDataLoader(self.ecocyc_file_path)
+        self.ecocyc_data_loader = EcocycDataLoader(self.ecocyc_file_path, self.output_promoter)
 
         self.data_name = os.path.basename(self.input_file_path)
         file_name = os.path.basename(self.input_file_path)
@@ -184,8 +185,11 @@ class GeneLocationAnalysis:
 
             if intersect_status != 'inter-genic':
                 result.append(self.render_location_result(intersect_status, record, left, right))
-        if len(result) == 0 and left_neareast_record is not None and right_neareast_record is not None:
-            result.append('inter-genic of %s, %s' % (left_neareast_record.name, right_neareast_record.name))
+        left_name = 'None' if not left_neareast_record else left_neareast_record.name
+        right_name = 'None' if not right_neareast_record else right_neareast_record.name
+        if len(result) == 0:
+            result.append('inter-genic of %s, %s' % (left_name, right_name))
+        assert len(result) > 0
         return result
 
     @staticmethod
