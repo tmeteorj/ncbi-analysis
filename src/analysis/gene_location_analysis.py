@@ -293,7 +293,7 @@ def interval_check(record_left, record_right, left, right):
         raise ValueError("[%d,%d] <-> [%d,%d]" % (record_left, record_right, left, right))
 
 
-def format_data_to_tsv(input_path, output_path, ecocyc_data_loader, output_promoter):
+def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
     headers = ['index', 'weighted_similarity', 'text_distance_similarity',
                'direct_match_similarity', 'consistency_similarity', 'location',
                'gene_name', 'type', 'exonic_gene_sizes', 'product',
@@ -305,26 +305,26 @@ def format_data_to_tsv(input_path, output_path, ecocyc_data_loader, output_promo
         line = line.strip()
         if line == '':
             if len(buff) > 0:
-                data = extract_consistency_record(buff, ecocyc_data_loader)
+                for data in extract_consistency_record(buff, ecocyc_data_loader):
+                    if data is not None:
+                        output = []
+                        for header in headers:
+                            output.append(data.get(header, ''))
+                        for start, end in data.get('location interval', []):
+                            output.extend([start, end])
+                        max_header_len = max(max_header_len, len(output))
+                        datas.append(output)
                 buff.clear()
-                if data is not None and (output_promoter or data.get('type', '') != ''):
-                    output = []
-                    for header in headers:
-                        output.append(data.get(header, ''))
-                    for start, end in data.get('location interval', []):
-                        output.extend([start, end])
-                    max_header_len = max(max_header_len, len(output))
-                    datas.append(output)
             continue
         buff.append(line)
     if len(buff) > 0:
-        data = extract_consistency_record(buff, ecocyc_data_loader)
-        if data is not None:
-            output = []
-            for header in headers:
-                output.append(data.get(header, ''))
-            max_header_len = max(max_header_len, len(output))
-            datas.append(output)
+        for data in extract_consistency_record(buff, ecocyc_data_loader):
+            if data is not None:
+                output = []
+                for header in headers:
+                    output.append(data.get(header, ''))
+                max_header_len = max(max_header_len, len(output))
+                datas.append(output)
     with open(output_path, 'w', encoding='utf8') as fw:
         idx = 1
         while len(headers) < max_header_len:
@@ -336,6 +336,27 @@ def format_data_to_tsv(input_path, output_path, ecocyc_data_loader, output_promo
 
 
 def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
+    def update_data(odata, location_type, genes, direction_matched, direction):
+        data = {k: v for k, v in odata.items()}
+        if location_type == 'inter-genic':
+            data['location'] = 'inter genic'
+            data['gene_name'] = genes
+        else:
+            data['location'] = 'antisense' if direction_matched == direction else 'sense'
+            if location_type == '5\'' or location_type == '3\'':
+                data['location'] += ' ' + location_type + 'utr'
+            else:
+                data['location'] += ' ' + location_type
+            data['gene_name'] = genes
+            record = ecocyc_data_loader.get_target_gene(genes.strip())
+            if record is None:
+                print(genes + ' not found, might be a promoter')
+            else:
+                data['type'] = record.type
+                data['exonic_gene_sizes'] = record.exonic_gene_sizes
+                data['product'] = record.product
+        return data
+
     data = {}
     location_type = ''
     direction = None
@@ -356,6 +377,8 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
             items = line.split(' of ')
             if len(items) != 2 or items[0] not in ['5\'', '3\'', 'cds', 'cover', 'inter-genic']:
                 continue
+            if location_type != '':
+                yield update_data(data, location_type, genes, direction_matched, direction)
             location_type = items[0]
             genes = items[1]
         elif line.startswith('original direction'):
@@ -377,24 +400,7 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
                 if score == int(data.get('consistency', 10000)):
                     interval.append([str(idx + 2 - score), str(idx + 1)])
             data['location interval'] = interval
-    if location_type == 'inter-genic':
-        data['location'] = 'inter genic'
-        data['gene_name'] = genes
-    else:
-        data['location'] = 'antisense' if direction_matched == direction else 'sense'
-        if location_type == '5\'' or location_type == '3\'':
-            data['location'] += ' ' + location_type + 'utr'
-        else:
-            data['location'] += ' ' + location_type
-        data['gene_name'] = genes
-        record = ecocyc_data_loader.get_target_gene(genes.strip())
-        if record is None:
-            print(genes + ' not found, might be a promoter')
-        else:
-            data['type'] = record.type
-            data['exonic_gene_sizes'] = record.exonic_gene_sizes
-            data['product'] = record.product
-    return data
+    yield update_data(data, location_type, genes, direction_matched, direction)
 
 
 class IntervalPositionStatus(Enum):
