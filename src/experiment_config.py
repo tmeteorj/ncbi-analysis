@@ -33,6 +33,7 @@ class ExperimentConfig:
     output_directory = os.path.join(root_directory, 'data', 'rna_analysis_result')
     rna_download_directory = os.path.join(data_directory, 'rna_download_data')
     ecocyc_download_directory = os.path.join(data_directory, 'ecocyc_download_data')
+    pubmed_ncbi_directory = os.path.join(data_directory, 'pubmed_ncbi')
 
     @staticmethod
     def disable_repeat_region():
