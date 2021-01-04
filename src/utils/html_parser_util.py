@@ -215,3 +215,72 @@ class GoHTMLParser(BaseHTMLParser):
         elif self.tb_depth == 2 and self.td_depth[-1] == 2 and self.tag_stack[-1] == 'a':
             self.go_table[-1][-1] = (self.go_table[-1][-1] + ',' + data.strip()).lstrip(',')
         logger.debug("Data     :%s" % data)
+
+
+class KeggIdHTMLParser(BaseHTMLParser):
+    def __init__(self):
+        super(KeggIdHTMLParser, self).__init__()
+        self.start_keyword = "KEGG ORTHOLOGY"
+        self.end_keywords = ["KEGG GENES", "KEGG MGENES"]
+        self.flag_start = False
+        self.last_href = None
+        self.kegg_id_map = {}
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.strip()
+        if self.flag_start:
+            logger.debug("Start tag: %s" % tag)
+            if tag == 'a':
+                for attr in attrs:
+                    if attr[0] == 'href':
+                        self.last_href = attr[1]
+            else:
+                self.last_href = None
+
+    def handle_data(self, data):
+        data = data.strip()
+        if data == self.start_keyword:
+            self.flag_start = True
+        elif self.flag_start and self.last_href:
+            if data.startswith('K'):
+                self.kegg_id_map[data] = self.last_href
+
+
+class KeggPathwayHTMLParser(BaseHTMLParser):
+    def __init__(self):
+        super(KeggPathwayHTMLParser, self).__init__()
+        self.tb_header_keyword = "Pathway"
+        self.status = "NotStart"
+        self.depth = 0
+        self.pathways = []
+        self.current_pathway = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.strip()
+        if self.status == "Start":
+            if tag == 'td':
+                self.status = "InTD"
+                self.depth += 1
+        elif self.status == 'InTD' and tag == 'td':
+            self.depth += 1
+
+    def handle_endtag(self, tag):
+        tag = tag.strip()
+        if self.status == "InTD":
+            if tag == 'td':
+                self.depth -= 1
+                if self.depth == 0:
+                    self.status = "End"
+            elif tag == 'table':
+                assert len(self.current_pathway) > 0
+                self.pathways.append(' '.join(self.current_pathway))
+                self.current_pathway.clear()
+
+    def handle_data(self, data):
+        data = data.strip()
+        if not data:
+            return
+        if data == self.tb_header_keyword and self.lasttag == "nobr" and self.status == "NotStart":
+            self.status = "Start"
+        elif self.status == "InTD":
+            self.current_pathway.append(data)
