@@ -42,6 +42,11 @@ class MatchAlgorithm(Enum):
             raise ValueError(similarity_name)
 
 
+class OrderType(Enum):
+    Increment = 0
+    Decrement = 1
+
+
 @dataclass
 class MatchCandidate:
     left: int
@@ -176,6 +181,7 @@ class GeneSimilarityMatch:
     weighted: List[int] = field(default_factory=list)
     conditions: dict = None
     continuous_mismatch_limit: int = None
+    order_type: OrderType = OrderType.Decrement
 
     def __post_init__(self):
         self.data_name = os.path.basename(self.data_path)
@@ -307,6 +313,8 @@ class GeneSimilarityMatch:
                                                                     max_patience=self.patience,
                                                                     match_pattern=match_pattern,
                                                                     continuous_mismatch_limit=self.continuous_mismatch_limit)
+            if self.order_type == OrderType.Increment:
+                weighted_similarity = -weighted_similarity
             new_candidate = MatchCandidate(
                 left=start,
                 right=start + gene_length - 1,

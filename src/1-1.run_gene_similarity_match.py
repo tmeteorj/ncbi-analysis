@@ -1,7 +1,7 @@
 import os
 
 from analysis.gene_location_analysis import GeneLocationAnalysis
-from analysis.gene_similarity_match import GeneSimilarityMatch
+from analysis.gene_similarity_match import GeneSimilarityMatch, OrderType
 from analysis.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 
@@ -57,7 +57,8 @@ if __name__ == '__main__':
                                                patience=patience,
                                                weighted=weighted,
                                                conditions=conditions,
-                                               continuous_mismatch_limit=continuous_mismatch_limit)
+                                               continuous_mismatch_limit=continuous_mismatch_limit,
+                                               order_type=OrderType.Increment)
         similarity_match.run()
 
         gene_location_analysis = GeneLocationAnalysis(similarity_match.result_path, ecocyc_file_path,
