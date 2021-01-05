@@ -45,6 +45,7 @@ conditions = {
 ecocyc_file_name = 'Ecocyc_NC_000913.txt'
 filter_sub_span = (45, 25)
 output_promoter = False
+order_type = OrderType.Increment
 if __name__ == '__main__':
     ecocyc_file_path = os.path.join(ExperimentConfig.data_directory, ecocyc_file_name)
     for gene_match_name in gene_match_names:
@@ -58,12 +59,12 @@ if __name__ == '__main__':
                                                weighted=weighted,
                                                conditions=conditions,
                                                continuous_mismatch_limit=continuous_mismatch_limit,
-                                               order_type=OrderType.Increment)
+                                               order_type=order_type)
         similarity_match.run()
-
-        gene_location_analysis = GeneLocationAnalysis(similarity_match.result_path, ecocyc_file_path,
-                                                      ExperimentConfig.output_directory,
-                                                      process_sub_data=weighted[2] > 0,
-                                                      filter_sub_span=filter_sub_span,
-                                                      output_promoter=output_promoter)
-        gene_location_analysis.run()
+        if OrderType.Decrement == order_type:
+            gene_location_analysis = GeneLocationAnalysis(similarity_match.result_path, ecocyc_file_path,
+                                                          ExperimentConfig.output_directory,
+                                                          process_sub_data=weighted[2] > 0,
+                                                          filter_sub_span=filter_sub_span,
+                                                          output_promoter=output_promoter)
+            gene_location_analysis.run()
