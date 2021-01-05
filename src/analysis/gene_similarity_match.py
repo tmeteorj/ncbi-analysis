@@ -182,6 +182,8 @@ class GeneSimilarityMatch:
     conditions: dict = None
     continuous_mismatch_limit: int = None
     order_type: OrderType = OrderType.Decrement
+    dna_code = None
+    rev_dna_code = None
 
     def __post_init__(self):
         self.data_name = os.path.basename(self.data_path)
@@ -240,8 +242,11 @@ class GeneSimilarityMatch:
         t2.join()
 
         candidates = t1.get_result() + t2.get_result()
-        candidates = list(filter(lambda arg: arg.weighted_similarity > 0, candidates))
+        candidates = list(candidates)
         candidates.sort(key=lambda arg: -arg.weighted_similarity)
+        if self.order_type == OrderType.Increment:
+            for candidate in candidates:
+                candidate.weighted_similarity = -candidate.weighted_similarity
         results = self.render_similarity_for_candidates(gene, candidates[:self.top_k])
         self.lock.acquire()
         idx = 1
