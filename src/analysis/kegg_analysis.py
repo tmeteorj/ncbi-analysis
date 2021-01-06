@@ -58,12 +58,10 @@ class KeggAnalysis:
 
     def work_for_gene(self, gene):
         for kegg_id in self.get_kegg_id(gene):
-            for kegg_with_pathway in self.work_for_kegg(kegg_id):
-                yield '%s\t%s' % (gene, kegg_with_pathway)
+            yield '%s\t%s' % (gene, self.work_for_kegg(kegg_id))
 
     def work_for_kegg(self, kegg_id):
-        for pathway in self.get_pathway(kegg_id):
-            yield '%s\t%s' % (kegg_id, pathway)
+        return '%s\t%s'%(kegg_id, '; '.join(self.get_pathway(kegg_id)))
 
     def get_kegg_id(self, gene):
         target_path = os.path.join(self.download_directory, 'get_kegg_id_%s.html' % gene)
