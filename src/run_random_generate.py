@@ -1,5 +1,6 @@
 import os
 import random
+import traceback
 
 from experiment_config import ExperimentConfig
 from utils.str_util import StrConverter
@@ -14,6 +15,11 @@ if __name__ == '__main__':
                                '%s_number_result.txt' % file_prefix)
     with open(result_path, 'w') as f:
         for target in open(input_file_path, 'r'):
-            target = int(target.strip())
-            ls = [(19.5 + random.random()) / 20 * target for n in range(3)]
-            f.write('\t'.join(map(str, ls)) + '\n')
+            try:
+                target = float(target.strip())
+                sum_all = target * 3
+                ls = [(19.5 + random.random()) / 20 * target for n in range(2)]
+                ls.append(sum_all - sum(ls))
+                f.write('\t'.join(map(str, ls)) + '\n')
+            except:
+                traceback.print_exc()
