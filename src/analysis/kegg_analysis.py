@@ -53,7 +53,6 @@ class KeggAnalysis:
                         solved + failed, total, solved, solved + failed, solved * 100.0 / (solved + failed)),
                     solved + failed, total
                 )
-
         fstd.close()
         ferr.close()
 
