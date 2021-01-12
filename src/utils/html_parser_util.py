@@ -249,38 +249,53 @@ class KeggIdHTMLParser(BaseHTMLParser):
 class KeggPathwayHTMLParser(BaseHTMLParser):
     def __init__(self):
         super(KeggPathwayHTMLParser, self).__init__()
-        self.tb_header_keyword = "Pathway"
+        self.tb_header_name_keyword = "Name"
+        self.tb_header_pathway_keyword = "Pathway"
         self.status = "NotStart"
         self.depth = 0
+        self.names = []
         self.pathways = []
         self.current_pathway = []
 
     def handle_starttag(self, tag, attrs):
         tag = tag.strip()
-        if self.status == "Start":
+        if self.status == "StartPathway":
             if tag == 'td':
-                self.status = "InTD"
-                self.depth += 1
-        elif self.status == 'InTD' and tag == 'td':
+                self.status = "InTDPathway"
+                self.depth = 1
+        elif self.status == "StartName":
+            if tag == 'td':
+                self.status = "InTDName"
+                self.depth = 1
+        elif (self.status == 'InTDPathway' or self.status == 'InTDName') and tag == 'td':
             self.depth += 1
 
     def handle_endtag(self, tag):
         tag = tag.strip()
-        if self.status == "InTD":
+        if self.status == "InTDPathway":
             if tag == 'td':
                 self.depth -= 1
                 if self.depth == 0:
-                    self.status = "End"
+                    self.status = "NotStart"
             elif tag == 'table':
                 assert len(self.current_pathway) > 0
                 self.pathways.append(' '.join(self.current_pathway))
                 self.current_pathway.clear()
+        elif self.status == "InTDName":
+            if tag == 'td':
+                self.depth -= 1
+                if self.depth == 0:
+                    self.status = "NotStart"
 
     def handle_data(self, data):
         data = data.strip()
         if not data:
             return
-        if data == self.tb_header_keyword and self.lasttag == "nobr" and self.status == "NotStart":
-            self.status = "Start"
-        elif self.status == "InTD":
+        if data == self.tb_header_pathway_keyword and self.lasttag == "nobr" and self.status == "NotStart":
+            self.status = "StartPathway"
+        elif data == self.tb_header_name_keyword and self.lasttag == "nobr" and self.status == "NotStart":
+            self.status = "StartName"
+        elif self.status == "InTDPathway":
             self.current_pathway.append(data)
+        elif self.status == "InTDName":
+            self.names.extend([x.strip() for x in data.split(',')])

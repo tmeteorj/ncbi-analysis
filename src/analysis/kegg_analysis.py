@@ -41,7 +41,7 @@ class KeggAnalysis:
                     for output in self.work_for_gene(data):
                         fstd.write(output + '\n')
                 else:
-                    for output in self.work_for_kegg(data):
+                    for output in self.work_for_kegg(data, True):
                         fstd.write(output + '\n')
                 solved += 1
             except:
@@ -58,10 +58,16 @@ class KeggAnalysis:
 
     def work_for_gene(self, gene):
         for kegg_id in self.get_kegg_id(gene):
-            yield '%s\t%s' % (gene, self.work_for_kegg(kegg_id))
+            for kegg_pathway in self.work_for_kegg(kegg_id, False):
+                yield '%s\t%s' % (gene, kegg_pathway)
 
-    def work_for_kegg(self, kegg_id):
-        return '%s\t%s'%(kegg_id, '; '.join(self.get_pathway(kegg_id)))
+    def work_for_kegg(self, kegg_id, return_name: bool):
+        names, pathways = self.get_pathway(kegg_id)
+        if not return_name:
+            yield '%s\t%s' % (kegg_id, '; '.join(pathways))
+        else:
+            for name in names:
+                yield '%s\t%s\t%s' % (kegg_id, name, '; '.join(pathways))
 
     def get_kegg_id(self, gene):
         target_path = os.path.join(self.download_directory, 'get_kegg_id_%s.html' % gene)
@@ -118,15 +124,18 @@ class KeggAnalysis:
                     self.logger.info("Retry %d for %s" % (retry_time, kegg_id))
         if not os.path.exists(target_path):
             raise ValueError("Kegg not found from web: %s" % kegg_id)
-        pathways = self.extract_pathway(target_path)
-        if len(pathways) == 0:
+        names, pathways = self.extract_name_pathway(target_path)
+        if len(pathways) == 0 or len(names) == 0:
             os.remove(target_path)
-            return ["No Pathway"]
-        return pathways
+            if len(pathways) == 0:
+                pathways = ["No Pathway"]
+            if len(names) == 0:
+                names = ["Not Found"]
+        return names, pathways
 
-    def extract_pathway(self, file_path):
+    def extract_name_pathway(self, file_path):
         with open(file_path, 'r') as f:
             body = f.read()
         parser = KeggPathwayHTMLParser()
         parser.feed(body)
-        return parser.pathways
+        return parser.names, parser.pathways
