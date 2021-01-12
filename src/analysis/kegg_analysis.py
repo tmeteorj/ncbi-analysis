@@ -1,5 +1,6 @@
 import gzip
 import json
+import multiprocessing
 import os
 import traceback
 from dataclasses import dataclass
@@ -32,42 +33,52 @@ class KeggAnalysis:
         ferr = open(self.kegg_error_path, 'w')
         solved = 0
         failed = 0
-        for data in open(self.input_path):
-            data = data.strip()
-            if not data:
-                continue
-            try:
-                if self.is_gene:
-                    for output in self.work_for_gene(data):
-                        fstd.write(output + '\n')
+        with open(self.input_path) as f:
+            datas = [data.strip() for data in f.readlines()]
+        total = len(datas)
+
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
+            func = self.work_for_gene if self.is_gene else self.work_for_kegg
+            for flag, outputs in p.imap(func, datas):
+                if flag:
+                    fstd.write('\n'.join(outputs) + '\n')
+                    fstd.flush()
+                    solved += 1
                 else:
-                    for output in self.work_for_kegg(data, True):
-                        fstd.write(output + '\n')
-                solved += 1
-            except:
-                ferr.write('%s\n' % data)
-                failed += 1
-                traceback.print_exc()
-            self.logger.info(
-                "Completed %d, success rate %d/%d=%.2f%%" % (
-                    solved + failed, solved, solved + failed, solved * 100.0 / (solved + failed)))
-            fstd.flush()
-            ferr.flush()
+                    ferr.write('%s\n' % outputs)
+                    ferr.flush()
+                    failed += 1
+                self.logger.info_with_expire_time(
+                    "Completed %d/%d, success rate %d/%d=%.2f%%" % (
+                        solved + failed, total, solved, solved + failed, solved * 100.0 / (solved + failed)),
+                    solved + failed, total
+                )
         fstd.close()
         ferr.close()
 
     def work_for_gene(self, gene):
-        for kegg_id in self.get_kegg_id(gene):
-            for kegg_pathway in self.work_for_kegg(kegg_id, False):
-                yield '%s\t%s' % (gene, kegg_pathway)
+        try:
+            outputs = []
+            for kegg_id in self.get_kegg_id(gene):
+                for flag, kegg_pathway in self.work_for_kegg(kegg_id):
+                    if not flag:
+                        return False, gene
+                    outputs.append('%s\t%s' % (gene, kegg_pathway))
+            return True, outputs
+        except:
+            traceback.print_exc()
+            return False, gene
 
-    def work_for_kegg(self, kegg_id, return_name: bool):
-        names, pathways = self.get_pathway(kegg_id)
-        if not return_name:
-            yield '%s\t%s' % (kegg_id, '; '.join(pathways))
-        else:
-            for name in names:
-                yield '%s\t%s\t%s' % (kegg_id, name, '; '.join(pathways))
+    def work_for_kegg(self, kegg_id):
+        try:
+            names, pathways = self.get_pathway(kegg_id)
+            if self.is_gene:
+                return True, ['%s\t%s' % (kegg_id, '; '.join(pathways))]
+            else:
+                outputs = ['%s\t%s\t%s' % (kegg_id, name, '; '.join(pathways)) for name in names]
+                return True, outputs
+        except:
+            return False, kegg_id
 
     def get_kegg_id(self, gene):
         target_path = os.path.join(self.download_directory, 'get_kegg_id_%s.html' % gene)
