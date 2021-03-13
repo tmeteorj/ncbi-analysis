@@ -6,7 +6,7 @@ from analysis.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 
 # the file you want to run
-gene_match_names = ['14ibsc.txt']
+gene_match_names = ['blat.txt']
 data_name = 'NC_000913.3.txt'
 
 """
@@ -15,8 +15,9 @@ match algorithm:
 (2) direct_match   :　compare each gene one by one
 (3) consistency    :  compare each gene one by one, and the longest matched sequence has the most top priority
 (4) pattern        :  only find gene match some pattern
+(5) BLAT           :  BLAT
 """
-weighted = [0, 0, 0, 1]
+weighted = [0, 0, 0, 0, 1]
 # only consider of the best gene in the range of candidate_distance
 candidate_distance = 5
 # output top 500 sequence

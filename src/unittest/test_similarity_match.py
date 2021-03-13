@@ -1,6 +1,6 @@
 import unittest
 
-from analysis.gene_similarity_match import count_similarity, fast_skip, count_acgt
+from analysis.gene_similarity_match import count_similarity, fast_skip, count_acgt, compute_blat_similarity
 
 
 class TestSimilarityMatch(unittest.TestCase):
@@ -24,3 +24,18 @@ class TestSimilarityMatch(unittest.TestCase):
         self.assertFalse(fast_skip(source_count, 9, target_gene, 0, 3, pat))
         pat = '.*AA.*AA'
         self.assertTrue(fast_skip(source_count, 9, target_gene, 0, 3, pat))
+
+    def test_blat_similarity(self):
+        gene = "tgatatca"
+        test_cases = [
+            ["atgatatca", 0, False, None],
+            ["tgatatca", 0, False, None],
+            ["tgataatca", 0, True, 9],
+            ["tagataatca", 0, True, 10],
+            ["tagtactaatca", 0, False, None],
+            ["taaaagataatca", 0, True, 13]
+        ]
+        for database, offset, expect_flag, expect_pos in test_cases:
+            flag, pos = compute_blat_similarity(gene, database, offset)
+            self.assertEqual(expect_flag, flag)
+            self.assertEqual(expect_pos, pos)
