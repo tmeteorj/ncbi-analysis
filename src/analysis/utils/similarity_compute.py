@@ -136,6 +136,9 @@ def compute_pattern_similarity(gene: str, database: str, offset: int, match_patt
 
 
 def compute_blat_similarity(gene: str, database: str, offset: int):
+    end_limit = 2
+    mid_limit = 10
+
     def search_dfs(pos_gene, pos_data, insert_data):
         if pos_gene < 4:
             sequence_matched_length = 1
@@ -145,7 +148,7 @@ def compute_blat_similarity(gene: str, database: str, offset: int):
                     sequence_matched_length = 0
                     insert_data += 1
                     pos_data += 1
-                    if insert_data > 4 or pos_data >= len(database):
+                    if insert_data > end_limit or pos_data >= len(database):
                         return False, None
                 if sequence_matched_length > 0:
                     cond = True
@@ -157,12 +160,12 @@ def compute_blat_similarity(gene: str, database: str, offset: int):
             flag, pos_data_end = search_dfs(4, pos_data + 1, 1)
             return flag, pos_data_end
         elif pos_gene == 4:
-            if insert_data > 20 or pos_data >= len(database):
+            if insert_data > mid_limit or pos_data >= len(database):
                 return False, None
             while should_change(gene[pos_gene], database[pos_data]) > 0:
                 pos_data += 1
                 insert_data += 1
-                if pos_data >= len(database) or insert_data > 20:
+                if pos_data >= len(database) or insert_data > mid_limit:
                     return False, None
             flag, pos_data_end = search_dfs(5, pos_data + 1, 0)
             if flag:
@@ -178,7 +181,7 @@ def compute_blat_similarity(gene: str, database: str, offset: int):
                     sequence_matched_length = 0
                     insert_data += 1
                     pos_data += 1
-                    if insert_data > 4 or pos_data >= len(database):
+                    if insert_data > end_limit or pos_data >= len(database):
                         return False, None
                 if sequence_matched_length > 0:
                     cond = True
