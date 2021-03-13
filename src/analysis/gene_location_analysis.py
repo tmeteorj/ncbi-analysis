@@ -3,7 +3,7 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, Set
 
 from src.utils.ecocyc_data_loader import EcocycDataLoader, EcocycInterRecord
 from src.utils.str_util import StrConverter
@@ -17,6 +17,8 @@ class GeneLocationAnalysis:
     process_sub_data: bool = True
     filter_sub_span: Tuple[int, int] = None
     output_promoter: bool = False
+    filter_gene_path: str = None
+    remain_gene: Set[str] = None
 
     def __post_init__(self):
         self.ecocyc_data_loader = EcocycDataLoader(self.ecocyc_file_path, self.output_promoter)
@@ -28,9 +30,13 @@ class GeneLocationAnalysis:
                                         '%s_location_result.txt' % file_prefix)
         self.sub_result_path = os.path.join(self.output_directory,
                                             '%s_sub_location_result.txt' % file_prefix)
+        self.ecocyc_data_loader.build_database()
+        if self.filter_gene_path:
+            self.remain_gene = set()
+            for gene in open(self.filter_gene_path, 'r'):
+                self.remain_gene.add(gene.strip().lower())
 
     def run(self):
-        self.ecocyc_data_loader.build_database()
         todo_list = []
         buff = []
         for line in open(self.input_file_path, 'r', encoding='utf8'):
@@ -143,8 +149,9 @@ class GeneLocationAnalysis:
     def process_one_data(self, data):
         start, end = data['start'], data['end']
         idx = self.ecocyc_data_loader.find_first_le(start)
-        data['location_result'].extend(
-            self.get_location_information(self.ecocyc_data_loader.inter_records, idx, start, end))
+        results, contains_target = self.get_location_information(self.ecocyc_data_loader.inter_records, idx, start, end)
+        data['location_result'].extend(results)
+        return contains_target
 
     def get_location_information(self, inter_records, idx, start, end):
         left = min(start, end)
@@ -154,6 +161,7 @@ class GeneLocationAnalysis:
         result = []
         left_neareast_record = None
         right_neareast_record = None
+        contains_target_gene = False
         for index in range(find_left, find_right):
             intersect_status = ''
             record = inter_records[index]
@@ -185,12 +193,16 @@ class GeneLocationAnalysis:
 
             if intersect_status != 'inter-genic':
                 result.append(self.render_location_result(intersect_status, record, left, right))
+                if record.name.lower() in self.remain_gene:
+                    contains_target_gene = True
         left_name = 'None' if not left_neareast_record else left_neareast_record.name
         right_name = 'None' if not right_neareast_record else right_neareast_record.name
         if len(result) == 0:
             result.append('inter-genic of %s, %s' % (left_name, right_name))
+            if left_name.lower() in self.remain_gene or right_name.lower() in self.remain_gene:
+                contains_target_gene = True
         assert len(result) > 0
-        return result
+        return result, contains_target_gene
 
     @staticmethod
     def render_location_result_inter_genic(left_record, right_record):

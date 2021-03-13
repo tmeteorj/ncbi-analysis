@@ -5,12 +5,12 @@ from analysis.gene_similarity_match import count_similarity, fast_skip, count_ac
 
 class TestSimilarityMatch(unittest.TestCase):
     def test_count_similarity(self):
-        text_distance_similarity = count_similarity('text_distance', 100, 'ACGTACG', 'ACGACGT', 0)
+        text_distance_similarity = count_similarity('text_distance', 100, 'ACGTACG', 'ACGACGT', 0, is_reverse=False)
         self.assertEqual(71, text_distance_similarity)
-        offset_test = count_similarity('text_distance', 100, 'ACGTACG', 'GCTACGACGT', 3)
+        offset_test = count_similarity('text_distance', 100, 'ACGTACG', 'GCTACGACGT', 3, is_reverse=False)
         self.assertEqual(text_distance_similarity, offset_test)
 
-        match_similarity = count_similarity('char_match', 100, 'ACGTACG', 'ACGACGT', 0)
+        match_similarity = count_similarity('char_match', 100, 'ACGTACG', 'ACGACGT', 0, is_reverse=False)
         self.assertEqual(42, match_similarity)
 
     def test_fast_skip(self):

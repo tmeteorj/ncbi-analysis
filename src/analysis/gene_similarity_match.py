@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Mapping
 
+from analysis.gene_location_analysis import GeneLocationAnalysis
 from analysis.utils.similarity_compute import *
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
@@ -138,6 +139,7 @@ class GeneSimilarityMatch:
     order_type: OrderType = OrderType.Decrement
     dna_code = None
     rev_dna_code = None
+    gene_name_filter = None
 
     def __post_init__(self):
         self.data_name = os.path.basename(self.data_path)
@@ -156,7 +158,8 @@ class GeneSimilarityMatch:
         self.weighted_sum = sum(self.weighted)
         assert self.weighted_sum > 0 and len(self.weighted) == 5
 
-    def run(self):
+    def run(self, gene_name_filter: GeneLocationAnalysis = None):
+        self.gene_name_filter = gene_name_filter
         self.gene_reader.build_information()
         self.dna_code = self.gene_reader.dna_code
         self.rev_dna_code = get_opposite_dna(self.gene_reader.dna_code[::-1])
@@ -269,9 +272,11 @@ class GeneSimilarityMatch:
                                                                     gene=gene,
                                                                     database=database,
                                                                     offset=start,
+                                                                    is_reverse=is_reverse,
                                                                     max_patience=self.patience,
                                                                     match_pattern=match_pattern,
-                                                                    continuous_mismatch_limit=self.continuous_mismatch_limit)
+                                                                    continuous_mismatch_limit=self.continuous_mismatch_limit,
+                                                                    gene_name_filter=self.gene_name_filter)
             if self.order_type == OrderType.Increment:
                 weighted_similarity = -weighted_similarity
             new_candidate = MatchCandidate(
@@ -409,7 +414,7 @@ class GeneSimilarityMatch:
                 else:
                     sequence.append('.')
         elif match_algorithm == MatchAlgorithm.blat:
-            flag, pos_data_end = compute_text_distance_similarity(gene, database, offset)
+            flag, pos_data_end = compute_blat_similarity(gene, database, offset)
             pos_data = offset
             pos_gene = 0
             while pos_gene < 4:
@@ -462,6 +467,8 @@ def update_candidate_list(new_candidate: MatchCandidate, buff: deque, candidate_
             candidate_result.append(old_candidate)
             added = True
     if new_candidate is not None:
+        if new_candidate.weighted_similarity <= 0.0:
+            new_candidate.should_ignore = True
         for candidate in buff:
             if candidate.weighted_similarity > new_candidate.weighted_similarity:
                 new_candidate.should_ignore = True
@@ -495,14 +502,16 @@ def count_acgt(gene):
     return gene_dict
 
 
-def count_similarity(weighted, gene, database, offset, max_patience=2, match_pattern=None,
-                     continuous_mismatch_limit=None):
+def count_similarity(weighted, gene, database, offset, is_reverse, max_patience=2, match_pattern=None,
+                     continuous_mismatch_limit=None,
+                     gene_name_filter=None):
     tot = len(gene)
     weighted_similarity = 0.0
     similarity = {}
     for match_algorithm, weight in zip(
             MatchAlgorithm.get_all_items(),
             weighted):
+        data_base_end = offset + len(gene)
         if weight == 0:
             score = 0.0
         elif match_algorithm == MatchAlgorithm.text_distance:
@@ -521,6 +530,22 @@ def count_similarity(weighted, gene, database, offset, max_patience=2, match_pat
             if flag:
                 score = 50 - (data_base_end - offset)
             else:
+                score = 0
+        if gene_name_filter and score > 0:
+            if is_reverse:
+                start = len(database) - offset
+                end = len(database) - data_base_end + 1
+            else:
+                start = offset + 1
+                end = data_base_end
+
+            data = {
+                'start': start,
+                'end': end,
+                'location_result': []
+            }
+            in_target = gene_name_filter.process_one_data(data)
+            if not in_target:
                 score = 0
         similarity[match_algorithm] = score
         weighted_similarity += score * weight

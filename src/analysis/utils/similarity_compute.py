@@ -162,7 +162,7 @@ def compute_blat_similarity(gene: str, database: str, offset: int):
             while should_change(gene[pos_gene], database[pos_data]) > 0:
                 pos_data += 1
                 insert_data += 1
-                if pos_data > len(database) or insert_data > 20:
+                if pos_data >= len(database) or insert_data > 20:
                     return False, None
             flag, pos_data_end = search_dfs(5, pos_data + 1, 0)
             if flag:
