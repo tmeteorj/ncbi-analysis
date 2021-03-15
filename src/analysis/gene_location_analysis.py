@@ -161,9 +161,8 @@ class GeneLocationAnalysis:
         result = []
         left_neareast_record = None
         right_neareast_record = None
-        contains_target_gene = False
+        contains_target_cds = False
         for index in range(find_left, find_right):
-            intersect_status = ''
             record = inter_records[index]
             status = interval_check(record.left, record.right, left, right)
             if status in [IntervalPositionStatus.IntersectLeft, IntervalPositionStatus.CoverLeft]:
@@ -193,16 +192,14 @@ class GeneLocationAnalysis:
 
             if intersect_status != 'inter-genic':
                 result.append(self.render_location_result(intersect_status, record, left, right))
-                if record.name.lower() in self.remain_gene:
-                    contains_target_gene = True
+                if intersect_status == 'cds' and record.name.lower() in self.remain_gene:
+                    contains_target_cds = True
         left_name = 'None' if not left_neareast_record else left_neareast_record.name
         right_name = 'None' if not right_neareast_record else right_neareast_record.name
         if len(result) == 0:
             result.append('inter-genic of %s, %s' % (left_name, right_name))
-            if left_name.lower() in self.remain_gene or right_name.lower() in self.remain_gene:
-                contains_target_gene = True
         assert len(result) > 0
-        return result, contains_target_gene
+        return result, contains_target_cds
 
     @staticmethod
     def render_location_result_inter_genic(left_record, right_record):
@@ -309,7 +306,7 @@ def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
     headers = ['index', 'weighted_similarity', 'text_distance_similarity',
                'direct_match_similarity', 'consistency_similarity', 'location',
                'gene_name', 'type', 'exonic_gene_sizes', 'product',
-               'site']
+               'site', 'target_sequence']
     max_header_len = len(headers)
     datas = []
     buff = []
@@ -412,6 +409,8 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
                 if score == int(data.get('consistency', 10000)):
                     interval.append([str(idx + 2 - score), str(idx + 1)])
             data['location interval'] = interval
+        elif line.find('target_format') >= 0:
+            data['target_sequence'] = line[line.index(':') + 1:].strip()
     yield update_data(data, location_type, genes, direction_matched, direction)
 
 
