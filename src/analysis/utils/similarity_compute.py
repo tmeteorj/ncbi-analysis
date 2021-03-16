@@ -157,7 +157,7 @@ def compute_blat_similarity(gene: str, database: str, offset: int):
                 pos_data += 1
             if not cond:
                 return False, None
-            flag, pos_data_end = search_dfs(4, pos_data + 1, 1)
+            flag, pos_data_end = search_dfs(4, pos_data + 3, 3)
             return flag, pos_data_end
         elif pos_gene == 4:
             if insert_data > mid_limit or pos_data >= len(database):
