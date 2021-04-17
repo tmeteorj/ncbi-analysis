@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Mapping
 
+from analysis.enum_types import SimilarityType
 from analysis.gene_location_analysis import GeneLocationAnalysis
-from analysis.utils.similarity_compute import *
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
 from utils.gene_util import get_opposite_dna
@@ -19,38 +19,6 @@ from collections import deque
 CandidateClearSize = 10000
 
 
-class MatchAlgorithm(Enum):
-    text_distance = 0
-    direct_match = 1
-    consistency = 2
-    pattern = 3
-    blat = 4
-
-    @staticmethod
-    def get_all_items():
-        return [MatchAlgorithm.text_distance, MatchAlgorithm.direct_match, MatchAlgorithm.consistency,
-                MatchAlgorithm.pattern, MatchAlgorithm.blat]
-
-    @staticmethod
-    def get_match_algorithm_by_name(similarity_name):
-        if similarity_name.find('text') >= 0:
-            return MatchAlgorithm.text_distance
-        elif similarity_name.find('direct') >= 0:
-            return MatchAlgorithm.direct_match
-        elif similarity_name.find('consistency') >= 0:
-            return MatchAlgorithm.consistency
-        elif similarity_name.find('pattern') >= 0:
-            return MatchAlgorithm.pattern
-        elif similarity_name.find('blat') >= 0:
-            return MatchAlgorithm.blat
-        else:
-            raise ValueError(similarity_name)
-
-
-class OrderType(Enum):
-    Increment = 0
-    Decrement = 1
-
 
 @dataclass
 class MatchCandidate:
@@ -59,7 +27,7 @@ class MatchCandidate:
     is_reverse: bool
     database_length: int
     weighted_similarity: float
-    similarity_dict: Mapping[MatchAlgorithm, float] = field(default_factory=dict)
+    similarity_dict: Mapping[SimilarityType, float] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.is_reverse:

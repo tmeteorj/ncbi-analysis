@@ -4,7 +4,7 @@ from analysis.similarities.blat_similarity import BlatSimilarity
 from analysis.similarities.consistency_similarity import ConsistencySimilarity
 from analysis.similarities.direct_match_similarity import DirectMatchSimilarity
 from analysis.similarities.pattern_similarity import PatternSimilarity, MatchPattern
-from analysis.similarities.similarity_type import SimilarityType
+from analysis.enum_types import SimilarityType
 from analysis.similarities.text_edit_similarity import TextEditSimilarity
 
 

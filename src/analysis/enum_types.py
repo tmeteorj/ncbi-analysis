@@ -26,3 +26,13 @@ class SimilarityType(Enum):
             return SimilarityType.Blat
         else:
             raise ValueError(f"{similarity_type} not found in SimilarityType")
+
+    @staticmethod
+    def get_all_items():
+        return [SimilarityType.TextEdit, SimilarityType.Direct, SimilarityType.Consistency,
+                SimilarityType.Pattern, SimilarityType.Blat]
+
+
+class OrderType(Enum):
+    Increment = 0
+    Decrement = 1
