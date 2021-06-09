@@ -3,20 +3,19 @@ from analysis.gene_extract import GeneExtract
 from experiment_config import *
 
 extract_gene_file_name = 'NC_000913.3.txt'
-ecocyc_gene_files = ['20200917-sample.txt']
+ecocyc_gene_files = ['20210609.txt']
 ecocyc_params = {
     'from_gene_names': True,
-    'output_best_promoter': False,
+    'output_best_promoter': True,
     'output_gene_sequence': False,
-    'output_detail_information': False,
-    'analysis_promoter': False,
-    'if_get_summary': False,
+    'output_detail_information': True,
+    'analysis_promoter': True,
+    'if_get_summary': True,
     'if_get_go_table': True
 }
 from_gene_names = True
 output_best_promoter = True
-cookie = 'pagecount=6; JSESSIONID=C53ACDDDFED95199673F71FD85C1E3D3; _gat=1; _gid=GA1.2.1786139794.1579272089; PTools-session=biocyc14b~biocyc14-3786098971%7CNIL%20NIL%20%22%22%20NIL%200%20(%3AWEB%20NIL%20-1%20((%3ABASICS%20-1)%20(%3AQUERIES%20-1)%20(%3AADVANCED%20-1)))%20NIL%20NIL%20ECOBASE%20NIL%20NIL%20%7Ch0x9lugmbx6fhk3bevsf98cen2omar5; _ga=GA1.2.407871027.1577110083; windowOrg=ptools0%3AECOLI%3A; recentOrgID0=ECOLI; frameWidth=1500; frameHeight=761'
-
+cookie = 'JSESSIONID=3D7EA386ED826530EA8854B46360216E; _ga=GA1.2.1085079220.1623245828; _gid=GA1.2.442820656.1623245828; PTools-session=biocyc13a~biocyc13-3832234589|NIL NIL NIL NIL 0 (:WEB NIL -1 ((:BASICS -1) (:QUERIES -1) (:ADVANCED -1))) NIL NIL NIL ECOBASE NIL NIL |6a977duko82vj71z42jcw7y5vjmmi0d; frameHeight=695; frameWidth=623; pagecount=8; _gat=1; _gat_UA-7250911-5=1'
 if __name__ == '__main__':
     data_path = os.path.join(ExperimentConfig.rna_download_directory, extract_gene_file_name)
     for ecocyc_gene_file in ecocyc_gene_files:
