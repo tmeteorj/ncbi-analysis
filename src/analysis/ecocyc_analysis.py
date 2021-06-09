@@ -212,10 +212,10 @@ class EcocycAnalysis:
                 self.transform_file(origin_path, file_path)
             elif page_type == "promoter":
                 urls = [
-                    'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-PLOC_%s.wg' % ecocyc_id,
-                    'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,
-                    'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,
-                    'https://biocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-PLOC_%s.wg' % ecocyc_id
+                    'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-PLOC_%s.wg' % ecocyc_id,
+                    'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,
+                    'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,
+                    'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-PLOC_%s.wg' % ecocyc_id
                 ]
                 origin_path = os.path.join(self.download_directory, ecocyc_id + '.json')
                 file_path = os.path.join(self.download_directory, 'promoter_' + ecocyc_id + '.json')
@@ -230,7 +230,7 @@ class EcocycAnalysis:
             raise ValueError('Parameter not correct')
         if os.path.exists(file_path):
             return True
-        headers = {"Host": "biocyc.org",
+        headers = {"Host": "ecocyc.org",
                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36",
                    "Accept": "*/*",
                    "Sec-Fetch-Site": "same-origin",
