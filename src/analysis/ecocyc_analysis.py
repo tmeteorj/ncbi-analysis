@@ -212,7 +212,6 @@ class EcocycAnalysis:
                 self.transform_file(origin_path, file_path)
             elif page_type == "promoter":
                 urls = [
-
                     'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-PLOC_%s.wg' % ecocyc_id,
                     'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-PLOC_%s.wg' % ecocyc_id,
                     'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,

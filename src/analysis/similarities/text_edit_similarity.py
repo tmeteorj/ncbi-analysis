@@ -1,13 +1,16 @@
+from typing import Tuple, Any
+
 from analysis.similarities.base_similarity import BaseSimilarity
 
 INF = 999999
 
 
 class TextEditSimilarity(BaseSimilarity):
+
     def __init__(self, continuous_mismatch_limit: int = None):
         self.continuous_mismatch_limit = continuous_mismatch_limit
 
-    def get_similarity(self, gene: str, database: str, offset: int):
+    def get_similarity(self, gene: str, database: str, offset: int) -> Tuple[float, Any]:
         tot = len(gene)
         dp = [[INF for _ in range(tot + 1)] for _ in range(tot + 1)]
         dp[0][0] = 0
@@ -43,3 +46,35 @@ class TextEditSimilarity(BaseSimilarity):
                 if mismatch >= self.continuous_mismatch_limit:
                     return 0, dp
         return score, dp
+
+    def rendering_sequence(self, gene: str, database: str, offset: int) -> Tuple[list, list, list]:
+        sequence_gene = []
+        sequence_target = []
+        sequence = []
+        tot = len(gene)
+        score, dp = self.get_similarity(gene, database, offset)
+        i, j = tot, tot
+        while i > 0 or j > 0:
+            gene_a, gene_b = gene[i - 1] if i > 0 else '.', database[j + offset - 1] if j > 0 else '.'
+            if i > 0 and j > 0 and dp[i][j] == dp[i - 1][j - 1] + self.should_change(gene[i - 1],
+                                                                                     database[j + offset - 1]):
+                sequence_gene.append(gene_a)
+                sequence_target.append(gene_b)
+                sequence.append('*' if self.should_change(gene[i - 1], database[j + offset - 1]) == 0 else '.')
+                i, j = i - 1, j - 1
+            elif dp[i][j] == dp[i - 1][j] + 1:
+                sequence_gene.append(gene_a)
+                sequence_target.append('.')
+                sequence.append('.')
+                i -= 1
+            elif dp[i][j] == dp[i][j - 1] + 1:
+                sequence_gene.append('.')
+                sequence_target.append(gene_b)
+                sequence.append('.')
+                j -= 1
+            else:
+                raise ValueError('Should not go here!')
+        sequence_gene.reverse()
+        sequence_target.reverse()
+        sequence.reverse()
+        return sequence_gene, sequence_target, sequence

@@ -1,12 +1,61 @@
+from typing import Tuple, Any
+
 from analysis.similarities.base_similarity import BaseSimilarity
 
 
 class BlatSimilarity(BaseSimilarity):
+
     def __init__(self, mid_limit: int = 10, end_limit: int = 2):
         self.end_limit = end_limit
         self.mid_limit = mid_limit
 
-    def get_similairty(self, gene: str, database: str, offset: int):
+    def rendering_sequence(self, gene: str, database: str, offset: int) -> Tuple[list, list, list]:
+        sequence_gene = []
+        sequence_target = []
+        sequence = []
+        flag, pos_data_end = self.get_similarity(gene, database, offset)
+        pos_data = offset
+        pos_gene = 0
+        while pos_gene < 4:
+            if self.should_change(gene[pos_gene], database[pos_data]) > 0:
+                sequence_gene.append('-')
+                sequence_target.append(database[pos_data])
+                sequence.append('.')
+                pos_data += 1
+            else:
+                sequence_gene.append(gene[pos_gene])
+                sequence_target.append(database[pos_data])
+                sequence.append('*')
+                pos_gene += 1
+                pos_data += 1
+        rev_pos_gene = 7
+        rev_pos_data = pos_data_end - 1
+        rev_sequence_gene = []
+        rev_sequence_target = []
+        rev_sequence = []
+        while rev_pos_gene > 3:
+            if self.should_change(gene[rev_pos_gene], database[rev_pos_data]) > 0:
+                rev_sequence_gene.append('-')
+                rev_sequence_target.append(database[rev_pos_data])
+                rev_sequence.append('.')
+                rev_pos_data -= 1
+            else:
+                rev_sequence_gene.append(gene[rev_pos_gene])
+                rev_sequence_target.append(database[rev_pos_data])
+                rev_sequence.append('*')
+                rev_pos_gene -= 1
+                rev_pos_data -= 1
+        while pos_data <= rev_pos_data:
+            sequence_gene.append('-')
+            sequence_target.append(database[pos_data])
+            sequence.append('.')
+            pos_data += 1
+        sequence_gene.extend(rev_sequence_gene[::-1])
+        sequence_target.extend(rev_sequence_target[::-1])
+        sequence.extend(rev_sequence[::-1])
+        return sequence_gene, sequence_target, sequence
+
+    def get_similarity(self, gene: str, database: str, offset: int) -> Tuple[float, Any]:
         end_limit = 2
         mid_limit = 10
 

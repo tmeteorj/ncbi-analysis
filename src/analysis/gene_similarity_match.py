@@ -1,15 +1,19 @@
 import heapq
+import multiprocessing
 import os
 import random
 import re
 import threading
-import time
-from dataclasses import dataclass, field
-from enum import Enum
+import pandas as pd
 from typing import List, Mapping
+from concurrent.futures import ThreadPoolExecutor
 
-from analysis.enum_types import SimilarityType
+from analysis.models.match_candidate import MatchCandidate
+from analysis.models.similarity_type import SimilarityType
+from analysis.models.order_type import OrderType
 from analysis.gene_location_analysis import GeneLocationAnalysis
+from analysis.similarities.pattern_similarity import MatchPattern
+from analysis.similarities.similarity_factory import SimilarityFactory
 from utils.factories.logger_factory import LoggerFactory
 from utils.gene_file_util import GeneFileReader
 from utils.gene_util import get_opposite_dna
@@ -19,232 +23,154 @@ from collections import deque
 CandidateClearSize = 10000
 
 
-
-@dataclass
-class MatchCandidate:
-    left: int
-    right: int
-    is_reverse: bool
-    database_length: int
-    weighted_similarity: float
-    similarity_dict: Mapping[SimilarityType, float] = field(default_factory=dict)
-
-    def __post_init__(self):
-        if self.is_reverse:
-            self.start = self.database_length - self.left
-            self.end = self.database_length - self.right
-        else:
-            self.start = self.left + 1
-            self.end = self.right + 1
-        self.should_ignore = False
-        self.original_match_left = self.left
-        self.original_match_right = self.right
-
-    def get_similarity_str(self):
-        result = 'weighted=%.2f' % self.weighted_similarity
-        for key, value in self.similarity_dict.items():
-            result += ', %s=%.2f' % (key.name, value)
-        return result
-
-    def __str__(self):
-        return '[%d-%d], (%s), %s, ' % (self.start, self.right, self.get_similarity_str(), self.should_ignore)
-
-    def __le__(self, other):
-        return self.weighted_similarity <= other.weighted_similarity
-
-    def __lt__(self, other):
-        return self.weighted_similarity < other.weighted_similarity
-
-    def __ge__(self, other):
-        return self.weighted_similarity >= other.weighted_similarity
-
-    def __gt__(self, other):
-        return self.weighted_similarity > other.weighted_similarity
-
-
-class HasReturnThread(threading.Thread):
-    def __init__(self, func, args, name=''):
-        threading.Thread.__init__(self)
-        self.name = name
-        self.func = func
-        self.args = args
-        self.result = None
-        self.local_thread = None
-
-    def start(self) -> None:
-        new_args = [self.func]
-        new_args.extend(self.args)
-        new_args = tuple(new_args)
-        self.local_thread = threading.Thread(target=self.trace_func, args=new_args)
-        self.local_thread.start()
-
-    def join(self) -> None:
-        self.local_thread.join()
-
-    def trace_func(self, func, *args, **kwargs):
-        ret = func(*args, **kwargs)
-        self.result = ret
-
-    def get_result(self):
-        try:
-            return self.result
-        except Exception:
-            return None
-
-
-@dataclass
 class GeneSimilarityMatch:
-    gene_path: str
-    data_path: str
-    output_directory: str
-    top_k: int = 20
-    candidate_distance: int = 5
-    batch_size: int = 5
-    patience: int = 0
-    weighted: List[int] = field(default_factory=list)
-    conditions: dict = None
-    continuous_mismatch_limit: int = None
-    order_type: OrderType = OrderType.Decrement
-    dna_code = None
-    rev_dna_code = None
-    gene_name_filter = None
-
-    def __post_init__(self):
+    def __init__(self,
+                 gene_path: str,
+                 data_path: str,
+                 output_directory: str,
+                 top_k: int = 20,
+                 candidate_distance: int = 5,
+                 patience: int = 0,
+                 weighted: Mapping[SimilarityType, int] = None,
+                 conditions: dict = None,
+                 continuous_mismatch_limit: int = None,
+                 order_type: OrderType = OrderType.Decrement,
+                 gene_name_filter=None):
+        self.gene_path = gene_path
+        self.data_path = data_path
+        self.output_directory = output_directory
+        self.top_k = top_k
+        self.candidate_distance = candidate_distance
+        self.patience = patience
+        self.weighted = {k: v for k, v in weighted.items() if v > 0}
+        self.conditions = conditions
+        self.continuous_mismatch_limit = continuous_mismatch_limit
+        self.order_type = order_type
+        self.gene_name_filter = gene_name_filter
         self.data_name = os.path.basename(self.data_path)
+        self.dna_code = None
+        self.rev_dna_code = None
+
         file_name = os.path.basename(self.gene_path)
         file_prefix = StrConverter.extract_file_name(file_name)
         self.result_path = os.path.join(self.output_directory,
-                                        '%s_match_result.txt' % (file_prefix))
+                                        '%s_match_result.txt' % file_prefix)
         self.gene_reader = GeneFileReader(self.data_path)
-        self.dna_code = None
-        self.rev_dna_code = None
         self.logger = LoggerFactory()
+        self.weighted_sum = sum([v for k, v in self.weighted.items()])
+        assert self.weighted_sum > 0
+        self.initialize()
 
-        self.lock = threading.Lock()
-        self.solved = 0
-        self.total = 0
-        self.weighted_sum = sum(self.weighted)
-        assert self.weighted_sum > 0 and len(self.weighted) == 5
-
-    def run(self, gene_name_filter: GeneLocationAnalysis = None):
-        self.gene_name_filter = gene_name_filter
+    def initialize(self):
         self.gene_reader.build_information()
         self.dna_code = self.gene_reader.dna_code
         self.rev_dna_code = get_opposite_dna(self.gene_reader.dna_code[::-1])
+
+    def run(self, gene_name_filter: GeneLocationAnalysis = None):
+        self.gene_name_filter = gene_name_filter
         with open(self.result_path, 'w', encoding='utf8') as fw:
-            gene_sequences = open(self.gene_path, 'r', encoding='utf8').readlines()[1:]
-            self.solved = 0
-            self.total = len(self.gene_reader.dna_code) * len(gene_sequences) * 2
+            gene_datas = pd.read_csv(self.gene_path, sep='\t')
+            records = [record for _, record in gene_datas.iterrows()]
+            solved = 0
+            total = len(gene_datas)
             self.logger.info_with_expire_time(
                 'Doing Similarity Matching: %d/%d(%.2f%%)' % (
-                    self.solved, self.total, self.solved * 100.0 / self.total), self.solved, self.total)
-            pending_tasks = deque()
-            running_tasks = []
-            for gene_sequence in gene_sequences:
-                items = gene_sequence.strip().split('\t')
-                name, gene = items[0], items[1].lower()
-                t = threading.Thread(target=self.find_candidate_for_gene, args=(name, gene, fw,))
-                pending_tasks.append(t)
-            while len(pending_tasks) > 0:
-                running_tasks = [t for t in running_tasks if t.isAlive()]
-                while len(running_tasks) < self.batch_size and len(pending_tasks) > 0:
-                    t = pending_tasks.popleft()
-                    t.start()
-                    running_tasks.append(t)
-                time.sleep(10)
-            for t in running_tasks:
-                t.join()
+                    solved, total, solved * 100.0 / total), solved, total)
+            with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
+                for ret in p.imap(self.find_candidate_for_gene, records):
+                    fw.write(ret)
+                    solved += 1
+                    self.logger.info_with_expire_time(
+                        'Doing Similarity Matching: %d/%d(%.2f%%)' % (
+                            solved, total, solved * 100.0 / total), solved, total)
 
-    def find_candidate_for_gene(self, name, gene, fw):
-
-        t1 = HasReturnThread(func=self.match_gene,
-                             args=(name, gene, self.dna_code, False,))
-        t1.start()
-        t2 = HasReturnThread(func=self.match_gene,
-                             args=(name, gene, self.rev_dna_code, True,))
-        t2.start()
-        t1.join()
-        t2.join()
-
-        candidates = t1.get_result() + t2.get_result()
+    def find_candidate_for_gene(self, record: pd.Series):
+        name, gene = record['name'], record['gene']
+        with ThreadPoolExecutor() as executor:
+            res1 = executor.submit(self.match_gene, name, gene, False)
+            res2 = executor.submit(self.match_gene, name, gene, True)
+            candidates = res1.result() + res2.result()
         candidates = list(candidates)
         candidates.sort(key=lambda arg: -arg.weighted_similarity)
+        candidates = candidates[:self.top_k]
         if self.order_type == OrderType.Increment:
             for candidate in candidates:
                 candidate.weighted_similarity = -candidate.weighted_similarity
         results = self.render_similarity_for_candidates(gene, candidates[:self.top_k])
-        self.lock.acquire()
-        idx = 1
+
         headers = [
             'name',
             'direction',
             'weighted_similarity'
         ]
-        for idx, similarity_name in enumerate(
-                ['text_distance_similarity', 'direct_match_similarity', 'consistency_similarity',
-                 'pattern_similarity', 'blat_similarity']):
-            if self.weighted[idx] > 0:
-                headers.append(similarity_name)
+        for similarity_name, weight in self.weighted.items():
+            headers.append(similarity_name.name)
         headers.append('original      :')
         sequence_headers = [
             'gene_format   :',
             'target_format :',
             'match_format  :']
+
+        content = ''
+        idx = 1
         for candidate_result in results:
             candidate = candidate_result[0]
-            fw.write('(%d)\n' % idx)
+            content += '(%d)\n' % idx
             attribute = {
                 'name': name,
                 'direction': '-' if candidate.is_reverse else '+',
                 'weighted_similarity': '%.2f' % candidate.weighted_similarity,
                 'original      :': gene
             }
-            for idx, similarity_name in enumerate(
-                    ['text_distance_similarity', 'direct_match_similarity', 'consistency_similarity',
-                     'pattern_similarity', 'blat_similarity']):
-                if self.weighted[idx] > 0:
-                    attribute[similarity_name] = '%.2f' % candidate.similarity_dict[
-                        MatchAlgorithm.get_match_algorithm_by_name(similarity_name)]
             sequence_content = []
             offset = 1
-            for idx, match_algorithm in enumerate(MatchAlgorithm.get_all_items()):
-                if self.weighted[idx] > 0:
-                    for sequence_header, value in zip(sequence_headers, candidate_result[offset:offset + 3]):
-                        value = ''.join(value)
-                        sequence_content.append(match_algorithm.name + "_" + sequence_header + '=' + value)
-                    offset += 3
+            for similarity_name, weight in self.weighted.items():
+                attribute[similarity_name.name] = '%.2f' % candidate.similarity_dict[similarity_name]
+                for sequence_header, value in zip(sequence_headers, candidate_result[offset:offset + 3]):
+                    value = ''.join(value)
+                    sequence_content.append(similarity_name.name + "_" + sequence_header + '=' + value)
+                offset += 3
 
-            fw.write('>%s/%s-%s\t%s,%s\n' % (
+            content += '>%s/%s-%s\t%s,%s\n\n' % (
                 self.data_name.replace(".txt", ''),
                 candidate.start,
                 candidate.end,
                 ','.join(['%s=%s' % (key, attribute[key]) for key in headers if key in attribute]),
                 ','.join(sequence_content)
-            ))
-            fw.write('\n')
+            )
             idx += 1
-        self.lock.release()
+        return content
 
-    def match_gene(self, name, gene, database, is_reverse):
+    def match_gene(self, name, gene, is_reverse):
+        database = self.rev_dna_code if is_reverse else self.dna_code
         candidates: List[MatchCandidate] = []
         gene_length = len(gene)
         min_weighted_similarity_in_candidates = 0.0
         database_length = len(database)
         limitation = database_length - gene_length + 1
-        new_solved = 0
         similarity_heap = []
         buff = deque()
         match_pattern = MatchPattern(gene, self.conditions) if self.conditions else None
+        current_logger = LoggerFactory(5)
+        solved = 0
+        msg = 'Analysis [%s][%s] %d/%d(%.2f%%)' % (
+            name,
+            '-' if is_reverse else '+',
+            solved,
+            limitation,
+            solved * 100.0 / limitation)
+        current_logger.info_with_expire_time(msg,
+                                             solved,
+                                             limitation)
         for start in range(limitation):
-            weighted_similarity, similarity_dict = count_similarity(weighted=self.weighted,
-                                                                    gene=gene,
-                                                                    database=database,
-                                                                    offset=start,
-                                                                    is_reverse=is_reverse,
-                                                                    max_patience=self.patience,
-                                                                    match_pattern=match_pattern,
-                                                                    continuous_mismatch_limit=self.continuous_mismatch_limit,
-                                                                    gene_name_filter=self.gene_name_filter)
+            weighted_similarity, similarity_dict = count_similarity(
+                weighted=self.weighted,
+                gene=gene,
+                database=database,
+                offset=start,
+                max_patience=self.patience,
+                match_pattern=match_pattern,
+                continuous_mismatch_limit=self.continuous_mismatch_limit)
             if self.order_type == OrderType.Increment:
                 weighted_similarity = -weighted_similarity
             new_candidate = MatchCandidate(
@@ -267,39 +193,29 @@ class GeneSimilarityMatch:
                     min_weighted_similarity_in_candidates = max(min_weighted_similarity_in_candidates,
                                                                 top.weighted_similarity)
 
-            new_solved += 1
-            if random.random() * 1000 < 1:
-                self.lock.acquire()
-                self.solved += new_solved
-                self.logger.info_with_expire_time(
-                    'Doing Similarity Matching for %s[%s]: %d/%d(%.2f%%) '
-                    '--top_k=%d '
-                    '--top_similarity_info=[%s] '
-                    '--gene_length=%d '
-                    '--candidates_num=%d' % (
-                        name,
-                        '-' if is_reverse else '+',
-                        self.solved,
-                        self.total,
-                        self.solved * 100.0 / self.total,
-                        self.top_k,
-                        similarity_heap[0].get_similarity_str() if len(similarity_heap) > 0 else 'None',
-                        gene_length,
-                        len(candidates)
-                    ),
-                    self.solved,
-                    self.total)
-                self.lock.release()
-                new_solved = 0
+            solved += 1
+            msg = 'Analysis for %s[%s]: %d/%d(%.2f%%) ' \
+                  '--top_k=%d --top_similarity_info=[%s] ' \
+                  '--gene_length=%d --candidates_num=%d' % (
+                      name,
+                      '-' if is_reverse else '+',
+                      solved,
+                      limitation,
+                      solved * 100.0 / limitation,
+                      self.top_k,
+                      similarity_heap[0].get_similarity_str() if len(similarity_heap) > 0 else 'None',
+                      gene_length,
+                      len(candidates)
+                  )
+            current_logger.info_with_expire_time(msg,
+                                                 solved,
+                                                 limitation)
 
             if len(candidates) > CandidateClearSize:
                 candidates.sort(key=lambda arg: -arg.weighted_similarity)
                 candidates = candidates[:self.top_k]
         while len(buff) > 0:
             update_candidate_list(None, buff, candidates, 1)
-        self.lock.acquire()
-        self.solved += new_solved + gene_length - 1
-        self.lock.release()
         return candidates
 
     def render_similarity_for_candidates(self, gene, candidates):
@@ -307,121 +223,21 @@ class GeneSimilarityMatch:
         for candidate in candidates:
             database = self.rev_dna_code if candidate.is_reverse else self.dna_code
             candidate_result = [candidate]
-            for idx, match_algorithm in enumerate(MatchAlgorithm.get_all_items()):
+            for idx, match_algorithm in enumerate(SimilarityType.get_all_items()):
                 if self.weighted[idx] > 0:
                     candidate_result.extend(
                         self.render_target_dna_sequence(match_algorithm, gene, database, candidate.original_match_left))
             result.append(candidate_result)
         return result
 
-    def render_target_dna_sequence(self, match_algorithm: MatchAlgorithm, gene, database, offset):
-        sequence_gene = []
-        sequence_target = []
-        sequence = []
-        tot = len(gene)
-        if match_algorithm == MatchAlgorithm.text_distance:
-            score, dp = compute_text_distance_similarity(gene, database, offset)
-            i, j = tot, tot
-            while i > 0 or j > 0:
-                gene_a, gene_b = gene[i - 1] if i > 0 else '.', database[j + offset - 1] if j > 0 else '.'
-                if i > 0 and j > 0 and dp[i][j] == dp[i - 1][j - 1] + should_change(gene[i - 1],
-                                                                                    database[j + offset - 1]):
-                    sequence_gene.append(gene_a)
-                    sequence_target.append(gene_b)
-                    sequence.append('*' if should_change(gene[i - 1], database[j + offset - 1]) == 0 else '.')
-                    i, j = i - 1, j - 1
-                elif dp[i][j] == dp[i - 1][j] + 1:
-                    sequence_gene.append(gene_a)
-                    sequence_target.append('.')
-                    sequence.append('.')
-                    i -= 1
-                elif dp[i][j] == dp[i][j - 1] + 1:
-                    sequence_gene.append('.')
-                    sequence_target.append(gene_b)
-                    sequence.append('.')
-                    j -= 1
-                else:
-                    raise ValueError('Should not go here!')
-            sequence_gene.reverse()
-            sequence_target.reverse()
-            sequence.reverse()
-        elif match_algorithm == MatchAlgorithm.direct_match:
-            for i in range(tot):
-                sequence_gene.append(gene[i])
-                sequence_target.append(database[i + offset])
-                if not should_change(gene[i], database[i + offset]):
-                    sequence.append('*')
-                else:
-                    sequence.append('.')
-        elif match_algorithm == MatchAlgorithm.consistency:
-            score, score_queue, score_merge_idx = compute_consistency_similarity(gene, database, offset,
-                                                                                 self.patience)
-            sequence_gene.extend(gene[:])
-            sequence_target.extend(database[offset:offset + tot])
-            cur_pos = 0
-            for idx, (same_cnt, same_end) in enumerate(score_queue):
-                same_start = same_end - same_cnt
-                while cur_pos < same_start:
-                    if score_merge_idx[0] < idx <= score_merge_idx[1]:
-                        sequence.append('-')
-                    else:
-                        sequence.append('.')
-                    cur_pos += 1
-                while cur_pos < same_end:
-                    sequence.append('*')
-                    cur_pos += 1
-            while cur_pos < tot:
-                sequence.append('.')
-                cur_pos += 1
-        elif match_algorithm == MatchAlgorithm.pattern:
-            for i in range(tot):
-                sequence_gene.append(gene[i])
-                sequence_target.append(database[i + offset])
-                if not should_change(gene[i], database[i + offset]):
-                    sequence.append('*')
-                else:
-                    sequence.append('.')
-        elif match_algorithm == MatchAlgorithm.blat:
-            flag, pos_data_end = compute_blat_similarity(gene, database, offset)
-            pos_data = offset
-            pos_gene = 0
-            while pos_gene < 4:
-                if should_change(gene[pos_gene], database[pos_data]) > 0:
-                    sequence_gene.append('-')
-                    sequence_target.append(database[pos_data])
-                    sequence.append('.')
-                    pos_data += 1
-                else:
-                    sequence_gene.append(gene[pos_gene])
-                    sequence_target.append(database[pos_data])
-                    sequence.append('*')
-                    pos_gene += 1
-                    pos_data += 1
-            rev_pos_gene = 7
-            rev_pos_data = pos_data_end - 1
-            rev_sequence_gene = []
-            rev_sequence_target = []
-            rev_sequence = []
-            while rev_pos_gene > 3:
-                if should_change(gene[rev_pos_gene], database[rev_pos_data]) > 0:
-                    rev_sequence_gene.append('-')
-                    rev_sequence_target.append(database[rev_pos_data])
-                    rev_sequence.append('.')
-                    rev_pos_data -= 1
-                else:
-                    rev_sequence_gene.append(gene[rev_pos_gene])
-                    rev_sequence_target.append(database[rev_pos_data])
-                    rev_sequence.append('*')
-                    rev_pos_gene -= 1
-                    rev_pos_data -= 1
-            while pos_data <= rev_pos_data:
-                sequence_gene.append('-')
-                sequence_target.append(database[pos_data])
-                sequence.append('.')
-                pos_data += 1
-            sequence_gene.extend(rev_sequence_gene[::-1])
-            sequence_target.extend(rev_sequence_target[::-1])
-            sequence.extend(rev_sequence[::-1])
+    def render_target_dna_sequence(self, similarity_type: SimilarityType, gene, database, offset):
+        similarity_render = SimilarityFactory.get_similarity(
+            similarity_type=similarity_type,
+            continuous_mismatch_limit=self.continuous_mismatch_limit,
+            max_patience=self.patience,
+            match_pattern=MatchPattern(gene, self.conditions) if self.conditions else None
+        )
+        sequence_gene, sequence_target, sequence = similarity_render.rendering_sequence(gene, database, offset)
         return sequence_gene, sequence_target, sequence
 
 
@@ -470,54 +286,30 @@ def count_acgt(gene):
     return gene_dict
 
 
-def count_similarity(weighted, gene, database, offset, is_reverse, max_patience=2, match_pattern=None,
-                     continuous_mismatch_limit=None,
-                     gene_name_filter=None):
-    tot = len(gene)
+def count_similarity(weighted: Mapping[SimilarityType, int],
+                     gene: str,
+                     database: str,
+                     offset: int,
+                     max_patience=2,
+                     match_pattern=None,
+                     continuous_mismatch_limit=None):
     weighted_similarity = 0.0
+    total_weight = 0.0
     similarity = {}
-    for match_algorithm, weight in zip(
-            MatchAlgorithm.get_all_items(),
-            weighted):
-        data_base_end = offset + len(gene)
-        if weight == 0:
-            score = 0.0
-        elif match_algorithm == MatchAlgorithm.text_distance:
-            score, dp = compute_text_distance_similarity(gene, database, offset, continuous_mismatch_limit)
-        elif match_algorithm == MatchAlgorithm.direct_match:
-            score = 0.0
-            for i in range(tot):
-                score += should_change(gene[i], database[i + offset])
-            score = tot - score
-        elif match_algorithm == MatchAlgorithm.consistency:
-            score, score_queue, score_merge_idx = compute_consistency_similarity(gene, database, offset, max_patience)
-        elif match_algorithm == MatchAlgorithm.pattern:
-            score = compute_pattern_similarity(gene, database, offset, match_pattern)
-        elif match_algorithm == MatchAlgorithm.blat:
-            flag, data_base_end = compute_blat_similarity(gene, database, offset)
-            if flag:
-                score = 50 - (data_base_end - offset)
-            else:
-                score = 0
-        if gene_name_filter and score > 0:
-            if is_reverse:
-                start = len(database) - offset
-                end = len(database) - data_base_end + 1
-            else:
-                start = offset + 1
-                end = data_base_end
-
-            data = {
-                'start': start,
-                'end': end,
-                'location_result': []
-            }
-            in_target = gene_name_filter.process_one_data(data)
-            if not in_target:
-                score = 0
-        similarity[match_algorithm] = score
+    for similarity_type, weight in weighted.items():
+        similarity_compute = SimilarityFactory.get_similarity(
+            similarity_type=similarity_type,
+            continuous_mismatch_limit=continuous_mismatch_limit,
+            max_patience=max_patience,
+            match_pattern=match_pattern,
+            mid_limit=10,
+            end_limit=2
+        )
+        score, info = similarity_compute.get_similarity(gene, database, offset)
+        similarity[similarity_type] = score
         weighted_similarity += score * weight
-    weighted_similarity = weighted_similarity / sum(weighted)
+        total_weight += weight
+    weighted_similarity = weighted_similarity / total_weight
     return weighted_similarity, similarity
 
 
