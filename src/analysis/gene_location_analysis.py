@@ -35,6 +35,8 @@ class GeneLocationAnalysis:
             self.remain_gene = set()
             for gene in open(self.filter_gene_path, 'r'):
                 self.remain_gene.add(gene.strip().lower())
+        else:
+            self.remain_gene = None
 
     def run(self):
         todo_list = []
@@ -192,7 +194,9 @@ class GeneLocationAnalysis:
 
             if intersect_status != 'inter-genic':
                 result.append(self.render_location_result(intersect_status, record, left, right))
-                if intersect_status == 'cds' and record.name.lower() in self.remain_gene:
+                if not self.remain_gene:
+                    contains_target_cds = True
+                elif intersect_status == 'cds' and record.name.lower() in self.remain_gene:
                     contains_target_cds = True
         left_name = 'None' if not left_neareast_record else left_neareast_record.name
         right_name = 'None' if not right_neareast_record else right_neareast_record.name

@@ -104,7 +104,7 @@ class GeneSimilarityMatch:
             'weighted_similarity'
         ]
         for similarity_name, weight in self.weighted.items():
-            headers.append(similarity_name.name)
+            headers.append(similarity_name.name.lower() + '_similarity')
         headers.append('original      :')
         sequence_headers = [
             'gene_format   :',
@@ -124,11 +124,12 @@ class GeneSimilarityMatch:
             }
             sequence_content = []
             offset = 1
-            for similarity_name, weight in self.weighted.items():
-                attribute[similarity_name.name] = '%.2f' % candidate.similarity_dict[similarity_name]
+            for similarity_name, weight in sorted(self.weighted.items(), key=lambda arg: arg[0]):
+                attribute[similarity_name.name.lower() + '_similarity'] = '%.2f' % candidate.similarity_dict[
+                    similarity_name]
                 for sequence_header, value in zip(sequence_headers, candidate_result[offset:offset + 3]):
                     value = ''.join(value)
-                    sequence_content.append(similarity_name.name + "_" + sequence_header + '=' + value)
+                    sequence_content.append(similarity_name.name.lower() + "_" + sequence_header + '=' + value)
                 offset += 3
 
             content += '>%s/%s-%s\t%s,%s\n\n' % (
@@ -147,7 +148,7 @@ class GeneSimilarityMatch:
         gene_length = len(gene)
         min_weighted_similarity_in_candidates = 0.0
         database_length = len(database)
-        limitation = database_length - gene_length + 1
+        limitation = 10000  # database_length - gene_length + 1
         similarity_heap = []
         buff = deque()
         match_pattern = MatchPattern(gene, self.conditions) if self.conditions else None
@@ -223,10 +224,9 @@ class GeneSimilarityMatch:
         for candidate in candidates:
             database = self.rev_dna_code if candidate.is_reverse else self.dna_code
             candidate_result = [candidate]
-            for idx, match_algorithm in enumerate(SimilarityType.get_all_items()):
-                if self.weighted[idx] > 0:
-                    candidate_result.extend(
-                        self.render_target_dna_sequence(match_algorithm, gene, database, candidate.original_match_left))
+            for similarity_type, weight in sorted(self.weighted.items(), key=lambda arg: arg[0]):
+                candidate_result.extend(
+                    self.render_target_dna_sequence(similarity_type, gene, database, candidate.original_match_left))
             result.append(candidate_result)
         return result
 
