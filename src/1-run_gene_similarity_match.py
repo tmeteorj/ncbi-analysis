@@ -7,7 +7,7 @@ from analysis.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 
 # the file you want to run
-gene_match_names = ['32_ncrna.txt']
+gene_match_names = ['sib_antisense.txt']
 data_name = 'NC_000913.3.txt'
 filter_gene_name = ''
 
@@ -21,7 +21,7 @@ weighted = {
 # only consider of the best gene in the range of candidate_distance
 candidate_distance = 5
 # output top 500 sequence
-top_k = 10000
+top_k = 1000
 # ignore mismatch with patience 2
 patience = 2
 conditions = {

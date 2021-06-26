@@ -76,7 +76,7 @@ class GeneSimilarityMatch:
             self.logger.info_with_expire_time(
                 'Doing Similarity Matching: %d/%d(%.2f%%)' % (
                     solved, total, solved * 100.0 / total), solved, total)
-            with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
+            with multiprocessing.Pool(min(multiprocessing.cpu_count(), 4)) as p:
                 for ret in p.imap(self.find_candidate_for_gene, records):
                     fw.write(ret)
                     solved += 1
@@ -85,11 +85,23 @@ class GeneSimilarityMatch:
                             solved, total, solved * 100.0 / total), solved, total)
 
     def find_candidate_for_gene(self, record: pd.Series):
-        name, gene = record['name'], record['gene']
+        def next_interval(size, thread_cnt):
+            batch_size = size // thread_cnt
+            last_pos = 0
+            while last_pos < size:
+                next_pos = min(last_pos + batch_size, size)
+                yield last_pos, next_pos
+                last_pos = next_pos
+
+        name, gene = record['name'], record['gene'].lower()
+        candidates = []
         with ThreadPoolExecutor() as executor:
-            res1 = executor.submit(self.match_gene, name, gene, False)
-            res2 = executor.submit(self.match_gene, name, gene, True)
-            candidates = res1.result() + res2.result()
+            tasks = []
+            for start, end in next_interval(len(self.dna_code), 16):
+                tasks.append(executor.submit(self.match_gene, name, gene, False, start, end))
+                tasks.append(executor.submit(self.match_gene, name, gene, True, start, end))
+            for task in tasks:
+                candidates.extend(task.result())
         candidates = list(candidates)
         candidates.sort(key=lambda arg: -arg.weighted_similarity)
         candidates = candidates[:self.top_k]
@@ -142,13 +154,13 @@ class GeneSimilarityMatch:
             idx += 1
         return content
 
-    def match_gene(self, name, gene, is_reverse):
+    def match_gene(self, name, gene, is_reverse, start, end):
         database = self.rev_dna_code if is_reverse else self.dna_code
         candidates: List[MatchCandidate] = []
         gene_length = len(gene)
         min_weighted_similarity_in_candidates = 0.0
         database_length = len(database)
-        limitation = database_length - gene_length + 1
+        tot = end - start
         similarity_heap = []
         buff = deque()
         match_pattern = MatchPattern(gene, self.conditions) if self.conditions else None
@@ -158,25 +170,26 @@ class GeneSimilarityMatch:
             name,
             '-' if is_reverse else '+',
             solved,
-            limitation,
-            solved * 100.0 / limitation)
+            tot,
+            solved * 100.0 / tot)
         current_logger.info_with_expire_time(msg,
                                              solved,
-                                             limitation)
-        for start in range(limitation):
+                                             tot)
+        end = min(database_length - gene_length + 1, end)
+        for offset in range(start, end):
             weighted_similarity, similarity_dict = count_similarity(
                 weighted=self.weighted,
                 gene=gene,
                 database=database,
-                offset=start,
+                offset=offset,
                 max_patience=self.patience,
                 match_pattern=match_pattern,
                 continuous_mismatch_limit=self.continuous_mismatch_limit)
             if self.order_type == OrderType.Increment:
                 weighted_similarity = -weighted_similarity
             new_candidate = MatchCandidate(
-                left=start,
-                right=start + gene_length - 1,
+                left=offset,
+                right=offset + gene_length - 1,
                 is_reverse=is_reverse,
                 database_length=database_length,
                 weighted_similarity=weighted_similarity,
@@ -201,8 +214,8 @@ class GeneSimilarityMatch:
                       name,
                       '-' if is_reverse else '+',
                       solved,
-                      limitation,
-                      solved * 100.0 / limitation,
+                      tot,
+                      solved * 100.0 / tot,
                       self.top_k,
                       similarity_heap[0].get_similarity_str() if len(similarity_heap) > 0 else 'None',
                       gene_length,
@@ -210,7 +223,7 @@ class GeneSimilarityMatch:
                   )
             current_logger.info_with_expire_time(msg,
                                                  solved,
-                                                 limitation)
+                                                 tot)
 
             if len(candidates) > CandidateClearSize:
                 candidates.sort(key=lambda arg: -arg.weighted_similarity)

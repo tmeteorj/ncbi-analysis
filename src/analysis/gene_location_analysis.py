@@ -307,7 +307,7 @@ def interval_check(record_left, record_right, left, right):
 
 
 def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
-    headers = ['index', 'name', 'weighted_similarity', 'text_distance_similarity',
+    headers = ['index', 'name', 'weighted_similarity', 'textedit_similarity',
                'direct_match_similarity', 'consistency_similarity', 'location',
                'gene_name', 'type', 'exonic_gene_sizes', 'product',
                'site', 'target_sequence']
