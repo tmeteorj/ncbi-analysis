@@ -5,7 +5,7 @@ from experiment_config import ExperimentConfig
 from utils.ecocyc_data_loader import EcocycDataLoader
 
 ecocyc_file_name = 'Ecocyc_NC_000913_2.0.txt'
-input_file_names = ["blat_match_location_result.txt"]
+input_file_names = ["32_ncrna_match_location_result.txt"]
 if __name__ == '__main__':
     ecocyc_file_path = os.path.join(ExperimentConfig.data_directory, ecocyc_file_name)
     ecocyc_data_loader = EcocycDataLoader(ecocyc_file_path)

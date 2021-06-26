@@ -148,7 +148,7 @@ class GeneSimilarityMatch:
         gene_length = len(gene)
         min_weighted_similarity_in_candidates = 0.0
         database_length = len(database)
-        limitation = 10000  # database_length - gene_length + 1
+        limitation = database_length - gene_length + 1
         similarity_heap = []
         buff = deque()
         match_pattern = MatchPattern(gene, self.conditions) if self.conditions else None
