@@ -355,7 +355,7 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
             data['location'] = 'inter genic'
             data['gene_name'] = genes
         else:
-            data['location'] = 'antisense' if direction_matched != direction else 'sense'
+            data['location'] = 'antisense' if direction_matched == direction else 'sense'
             if location_type == '5\'' or location_type == '3\'':
                 data['location'] += ' ' + location_type + 'utr'
             else:
