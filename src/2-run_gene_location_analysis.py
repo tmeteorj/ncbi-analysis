@@ -11,9 +11,9 @@ if __name__ == '__main__':
     ecocyc_file_path = os.path.join(ExperimentConfig.data_directory, ecocyc_file_name)
     for input_file_name in location_analysis_names:
         input_file_path = os.path.join(ExperimentConfig.output_directory, input_file_name)
-        gene_location_analysis = GeneLocationAnalysis(input_file_path, ecocyc_file_path,
+        gene_location_analysis = GeneLocationAnalysis(input_file_path,
+                                                      ecocyc_file_path,
                                                       ExperimentConfig.output_directory,
                                                       process_sub_data=True,
-                                                      filter_sub_span=filter_sub_span,
-                                                      output_promoter=output_promoter)
+                                                      filter_sub_span=filter_sub_span)
         gene_location_analysis.run()

@@ -41,6 +41,7 @@ conditions = {
     }]
 }
 ecocyc_file_name = 'Ecocyc_NC_000913.txt'
+filter_sub_span = (45, 25)
 
 if __name__ == '__main__':
     ecocyc_file_path = os.path.join(ExperimentConfig.data_directory, ecocyc_file_name)
@@ -58,6 +59,7 @@ if __name__ == '__main__':
         gene_location_analysis = GeneLocationAnalysis(similarity_match.result_path, ecocyc_file_path,
                                                       ExperimentConfig.output_directory,
                                                       process_sub_data=weighted.get(SimilarityType.Consistency, 0) > 0,
+                                                      filter_sub_span=filter_sub_span,
                                                       filter_gene_path=filter_gene_path)
 
         similarity_match.run(gene_location_analysis)

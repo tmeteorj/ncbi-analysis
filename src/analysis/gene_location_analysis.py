@@ -308,7 +308,7 @@ def interval_check(record_left, record_right, left, right):
 
 def format_data_to_tsv(input_path, output_path, ecocyc_data_loader):
     headers = ['index', 'name', 'weighted_similarity', 'textedit_similarity',
-               'direct_match_similarity', 'consistency_similarity', 'location',
+               'direct_similarity', 'consistency_similarity', 'location',
                'gene_name', 'type', 'exonic_gene_sizes', 'product',
                'site', 'target_sequence']
     max_header_len = len(headers)
@@ -355,7 +355,7 @@ def extract_consistency_record(buff, ecocyc_data_loader: EcocycDataLoader):
             data['location'] = 'inter genic'
             data['gene_name'] = genes
         else:
-            data['location'] = 'antisense' if direction_matched == direction else 'sense'
+            data['location'] = 'antisense' if direction_matched != direction else 'sense'
             if location_type == '5\'' or location_type == '3\'':
                 data['location'] += ' ' + location_type + 'utr'
             else:
