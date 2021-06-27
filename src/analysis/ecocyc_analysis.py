@@ -213,9 +213,9 @@ class EcocycAnalysis:
             elif page_type == "promoter":
                 urls = [
                     'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-PLOC_%s.wg' % ecocyc_id,
+                    'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-PLOC_%s.wg' % ecocyc_id,
                     'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=-1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,
-                    'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id,
-                    'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-PLOC_%s.wg' % ecocyc_id
+                    'https://ecocyc.org/tmp/ptools-images/ECOLI/TU_dir=1_topdir=1_NO-INDEX_NO-PLOC_%s.wg' % ecocyc_id
                 ]
                 origin_path = os.path.join(self.download_directory, ecocyc_id + '.json')
                 file_path = os.path.join(self.download_directory, 'promoter_' + ecocyc_id + '.json')
