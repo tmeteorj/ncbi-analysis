@@ -28,7 +28,7 @@ class ExperimentConfig:
     MAX_ITERATION_TIME = 100
     MAX_THREAD_NUM = 16
 
-    root_directory = os.sep.join(os.getcwd().split(os.sep)[:-1])
+    root_directory = os.sep.join(__file__.split(os.sep)[:-2])
     data_directory = os.path.join(root_directory, 'data', 'rna_analysis')
     output_directory = os.path.join(root_directory, 'data', 'rna_analysis_result')
     rna_download_directory = os.path.join(data_directory, 'rna_download_data')
