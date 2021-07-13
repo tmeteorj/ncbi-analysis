@@ -25,6 +25,7 @@ class ColiGeneSegment:
                     setattr(self, attr, matched[0])
         self.parse_location()
         self.sequence = ''.join(buff[1:]).lower()
+        self.gene = self.gene if self.gene else f'Unknown:{self.locus_tag}'
 
     def parse_location(self):
         if self.location:
@@ -55,10 +56,23 @@ class ColiDatabase(object):
         for line in open(coli_path, 'r'):
             if line.startswith('>lcl'):
                 if len(buff) > 0:
-                    self.segments.append(ColiGeneSegment(buff).to_dict())
+                    self.segments.append(ColiGeneSegment(buff))
                     buff.clear()
             buff.append(line.strip())
         if len(buff) > 0:
-            self.segments.append(ColiGeneSegment(buff).to_dict())
-        self.segments = pd.DataFrame(self.segments)
+            self.segments.append(ColiGeneSegment(buff))
+        self.segments.sort(key=lambda arg: arg.start)
         logger.info('Segments Count = %d' % len(self.segments))
+
+    def find_first_greater_equal(self, pos):
+        start, end = 0, len(self.segments) - 1
+        while start < end:
+            mid = (start + end) // 2
+            if self.segments[mid].start < pos:
+                start = mid + 1
+            elif self.segments[mid].start >= pos:
+                end = mid
+        if self.segments[end].start >= pos:
+            return end
+        else:
+            return end + 1
