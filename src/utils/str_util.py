@@ -1,4 +1,5 @@
 import codecs
+import os
 import re
 
 
@@ -30,9 +31,16 @@ class StrConverter:
         flag = True
         end_str = ['result', '_', 'all']
         while len(output_name) > 0 and flag:
-            flag=False
+            flag = False
             for end in end_str:
                 if output_name.endswith(end):
                     output_name = output_name[:-len(end)]
-                    flag=True
+                    flag = True
         return output_name
+
+    @staticmethod
+    def generate_result_file_name(input_file_path, output_directory, target):
+        input_file_name = os.path.basename(input_file_path)
+        file_prefix = StrConverter.extract_file_name(input_file_name)
+        result_path = os.path.join(output_directory, '%s_%s_result.txt' % (file_prefix, target))
+        return result_path

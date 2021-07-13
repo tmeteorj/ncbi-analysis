@@ -24,12 +24,10 @@ class GeneLocationAnalysis:
         self.ecocyc_data_loader = EcocycDataLoader(self.ecocyc_file_path, self.output_promoter)
 
         self.data_name = os.path.basename(self.input_file_path)
-        file_name = os.path.basename(self.input_file_path)
-        file_prefix = StrConverter.extract_file_name(file_name)
-        self.result_path = os.path.join(self.output_directory,
-                                        '%s_location_result.txt' % file_prefix)
-        self.sub_result_path = os.path.join(self.output_directory,
-                                            '%s_sub_location_result.txt' % file_prefix)
+        self.result_path = StrConverter.generate_result_file_name(self.input_file_path, self.output_directory,
+                                                                  'location')
+        self.sub_result_path = StrConverter.generate_result_file_name(self.input_file_path, self.output_directory,
+                                                                      'sub_location')
         self.ecocyc_data_loader.build_database()
         if self.filter_gene_path:
             self.remain_gene = set()
