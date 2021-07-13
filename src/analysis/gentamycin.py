@@ -9,6 +9,7 @@ from utils.str_util import StrConverter
 
 class GentamycinAnalysis:
     __header_gene__ = 'Gene'
+    __header_sequence__ = 'sequence'
     __expand_headers__ = ['left_gene', 'right_gene', 'hit_gene', 'sequence']
 
     def __init__(self, coli_database_path, output_directory=None):
@@ -22,9 +23,28 @@ class GentamycinAnalysis:
                                                          result_type='expand')
         gene_df.to_csv(output_path, sep='\t', index=None, header=True)
 
+        prepare_consistency_file = StrConverter.generate_result_file_name(gene_list_path, self.output_directory,
+                                                                          'gentamycin_consistency')
+        consistency_df = []
+        for _, record in gene_df.iterrows():
+            name = record[self.__header_gene__]
+            sequences = record['sequence']
+            if not sequences: continue
+            for sequence in sequences.split(','):
+                target_tag = 'hit'
+                for tag in ['left', 'right']:
+                    if sequence.startswith(tag):
+                        sequence = sequence[len(tag) + 1:]
+                        target_tag = tag
+                consistency_df.append({
+                    'name': name + '-' + target_tag,
+                    'gene': sequence
+                })
+        consistency_df = pd.DataFrame(consistency_df)
+        consistency_df.to_csv(prepare_consistency_file, sep='\t', index=None, header=True)
+
     def expand_one_record(self, record: pd.Series):
         """
-
         :param record:
         :return: left gene, right gene, hit gene, sequence
         """
