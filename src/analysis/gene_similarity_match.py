@@ -1,9 +1,9 @@
 import heapq
 import multiprocessing
 import os
-import random
 import re
-import threading
+from random import random
+
 import pandas as pd
 from typing import List, Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -76,9 +76,10 @@ class GeneSimilarityMatch:
             self.logger.info_with_expire_time(
                 'Doing Similarity Matching: %d/%d(%.2f%%)' % (
                     solved, total, solved * 100.0 / total), solved, total)
-            with multiprocessing.Pool(min(multiprocessing.cpu_count(), 4)) as p:
+            with multiprocessing.Pool(min(multiprocessing.cpu_count(), 2)) as p:
                 for ret in p.imap(self.find_candidate_for_gene, records):
                     fw.write(ret)
+                    fw.flush()
                     solved += 1
                     self.logger.info_with_expire_time(
                         'Doing Similarity Matching: %d/%d(%.2f%%)' % (
@@ -97,7 +98,7 @@ class GeneSimilarityMatch:
         candidates = []
         with ThreadPoolExecutor() as executor:
             tasks = []
-            for start, end in next_interval(len(self.dna_code), 16):
+            for start, end in next_interval(len(self.dna_code), 32):
                 tasks.append(executor.submit(self.match_gene, name, gene, False, start, end))
                 tasks.append(executor.submit(self.match_gene, name, gene, True, start, end))
             for task in tasks:
@@ -164,7 +165,7 @@ class GeneSimilarityMatch:
         similarity_heap = []
         buff = deque()
         match_pattern = MatchPattern(gene, self.conditions) if self.conditions else None
-        current_logger = LoggerFactory(5)
+        current_logger = LoggerFactory(int(10 + random() * 120))
         solved = 0
         msg = 'Analysis [%s][%s] %d/%d(%.2f%%)' % (
             name,
@@ -208,11 +209,13 @@ class GeneSimilarityMatch:
                                                                 top.weighted_similarity)
 
             solved += 1
-            msg = 'Analysis for %s[%s]: %d/%d(%.2f%%) ' \
+            msg = 'Analysis for %s[%s](%d~%d): %d/%d(%.2f%%) ' \
                   '--top_k=%d --top_similarity_info=[%s] ' \
                   '--gene_length=%d --candidates_num=%d' % (
                       name,
                       '-' if is_reverse else '+',
+                      start,
+                      end,
                       solved,
                       tot,
                       solved * 100.0 / tot,
