@@ -30,7 +30,6 @@ class GeneExtract:
             self.inv_headers.append(col_name)
 
     def run(self):
-        self.gene_reader.initialize()
         dna_code = self.gene_reader.dna_code
         with open(self.result_path, 'w', encoding='utf8') as fw:
             if self.gene_extract_based == 'gene':

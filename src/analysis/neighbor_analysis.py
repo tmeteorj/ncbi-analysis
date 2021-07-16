@@ -173,7 +173,7 @@ class NeighborAnalysis:
         left = min(inter)
         right = max(inter)
         gene_info = NCBIDatabase(download_file_path)
-        if not gene_info.initialize():
+        if not gene_info.initialized:
             return False, None
         near_small = None
         near_big = None

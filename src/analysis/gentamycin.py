@@ -13,14 +13,13 @@ from utils.str_util import StrConverter
 class GentamycinAnalysis:
     __header_gene__ = 'Gene'
     __header_sequence__ = 'sequence'
-    __atcc_expand_headers__ = ['left', 'right', 'hit', 'sequence']
+    __atcc_expand_headers__ = ['related', 'hit', 'sequence']
     __ncbi_expand_headers__ = ['sequence']
 
     def __init__(self, ncbi_database_path=None, atcc_database_path=None, output_directory=None):
         self.atcc_database = ATCCDatabase(atcc_database_path) if atcc_database_path else None
         self.ncbi_database = NCBIDatabase(ncbi_database_path) if ncbi_database_path else None
         if self.ncbi_database:
-            self.ncbi_database.initialize()
             self.gene_position_helper = GenePositionHelper(self.ncbi_database)
         else:
             self.gene_position_helper = GenePositionHelper(self.atcc_database)
@@ -70,9 +69,8 @@ class GentamycinAnalysis:
         else:
 
             left, right, direction = self.get_position(record['Locus'].strip())
-            result = self.gene_position_helper.get_nearby_gene_based_by_range(left, right)
-            result['sequence'] = json.dumps(result['sequence'])
-            result = tuple([result.get(header, '') for header in self.__atcc_expand_headers__])
+            result = self.gene_position_helper.get_nearby_gene_based_by_range(left, right, direction)
+            result = tuple([result.get(header) for header in self.expand_headers])
             return result
 
     def expand_one_record_from_ncbi(self, record: pd.Series):
@@ -86,7 +84,8 @@ class GentamycinAnalysis:
             sequence = get_opposite_dna(sequence[::-1])
         return sequence,
 
-    def get_position(self, locus):
+    @staticmethod
+    def get_position(locus):
         matched = re.findall(r'(.+):(\d+)-(\d+)\((.)\)', locus)
         assert matched and len(matched) == 1, locus
         matched = matched[0]

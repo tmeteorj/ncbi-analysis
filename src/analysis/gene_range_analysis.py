@@ -22,7 +22,6 @@ class GeneRangeExtract:
             self.inv_headers.append(col_name)
 
     def run(self):
-        self.gene_reader.initialize()
         with open(self.result_path, 'w', encoding='utf8') as fw:
             last_end = 0
             region_idx = 0

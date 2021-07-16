@@ -62,7 +62,6 @@ class GeneSimilarityMatch:
         self.initialize()
 
     def initialize(self):
-        self.gene_reader.initialize()
         self.dna_code = self.gene_reader.dna_code
         self.rev_dna_code = get_opposite_dna(self.gene_reader.dna_code[::-1])
 

@@ -48,7 +48,6 @@ class TestRNAAnalysis(unittest.TestCase):
     def test_gene_data_reader(self):
         input_path = os.path.join(self.download_directory, 'NC_000913.3.txt')
         gene_data_reader = NCBIDatabase(input_path)
-        gene_data_reader.initialize()
         self.assertTrue(len(gene_data_reader.gene_segments) > 0)
         with open(os.path.join(self.data_directory, 'gene_all.txt'), 'w', encoding='utf8') as fw:
             for gene_segment in gene_data_reader.gene_segments:

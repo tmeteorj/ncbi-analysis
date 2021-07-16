@@ -68,6 +68,7 @@ class NCBIDatabase(GeneDatabase):
         self.enable_debug_info = enable_debug_info
         self.file_path = file_path
         self.logger = LoggerFactory(1)
+        self.initialized = self.initialize()
 
     def initialize(self):
         part_status = GeneDataPartType.HeaderPart
@@ -179,7 +180,6 @@ if __name__ == '__main__':
 
     file_path = 'D:/Workspace/ncbi-analysis/data/rna_analysis/rna_download_data/NC_000913.3.txt'
     gene = NCBIDatabase(file_path)
-    gene.initialize()
     b_dict = {}
     for gene_segment in gene.gene_segments:
         if gene_segment.gene_id:
