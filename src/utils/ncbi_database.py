@@ -57,6 +57,7 @@ class NCBIGeneSegment(GeneSegment):
 
 
 class NCBIDatabase(GeneDatabase):
+
     def __init__(self, file_path, ignore_gene=False, enable_debug_info=False):
         self.ignore_gene = ignore_gene
         self.gene_segments = []
@@ -147,6 +148,11 @@ class NCBIDatabase(GeneDatabase):
             self.gene_segments.append(gene_segment)
             gene_segment.left, gene_segment.right = gene_segment.cds[0], gene_segment.cds[1]
         data.clear()
+
+    def get_sequence(self, segment_id=None, left=None, right=None):
+        if segment_id:
+            left, right = self.gene_segments[segment_id].left, self.gene_segments[segment_id].right
+        return self.dna_code[left - 1:right]
 
     @staticmethod
     def check_line_type(line: str, part_status):

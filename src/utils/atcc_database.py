@@ -51,8 +51,9 @@ class ATCCGeneSegment(GeneSegment):
 
 
 class ATCCDatabase(GeneDatabase):
+
     def __init__(self, coli_path):
-        self.gene_segments = []
+        self.gene_segments: ATCCGeneSegment = []
         buff = []
         for line in open(coli_path, 'r'):
             if line.startswith('>lcl'):
@@ -64,3 +65,6 @@ class ATCCDatabase(GeneDatabase):
             self.gene_segments.append(ATCCGeneSegment(buff))
         self.gene_segments.sort(key=lambda arg: arg.start)
         logger.info('Segments Count = %d' % len(self.gene_segments))
+
+    def get_sequence(self, segment_id=None, left=None, right=None):
+        return self.gene_segments[segment_id].sequence

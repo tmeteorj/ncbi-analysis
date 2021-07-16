@@ -22,3 +22,6 @@ class GeneDatabase:
             return end
         else:
             return end + 1
+
+    def get_sequence(self, segment_id=None, left=None, right=None):
+        raise NotImplementedError()
