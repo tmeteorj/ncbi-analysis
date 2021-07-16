@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from experiment_config import ExperimentConfig
 from utils.data_download_util import DataDownloadTool
 from utils.factories.logger_factory import LoggerFactory
-from utils.gene_file_util import GeneFileReader
+from utils.ncbi_database import NCBIDatabase
 from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 
@@ -172,8 +172,8 @@ class NeighborAnalysis:
     def analysis_download_file(download_file_path, inter):
         left = min(inter)
         right = max(inter)
-        gene_info = GeneFileReader(download_file_path)
-        if not gene_info.build_information():
+        gene_info = NCBIDatabase(download_file_path)
+        if not gene_info.initialize():
             return False, None
         near_small = None
         near_big = None
