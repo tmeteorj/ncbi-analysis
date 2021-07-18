@@ -1,4 +1,6 @@
-from utils.gene_database import GeneDatabase
+from typing import List
+
+from utils.gene_database import GeneDatabase, GeneSegment
 from utils.gene_util import get_opposite_dna
 
 
@@ -12,22 +14,54 @@ class GenePositionHelper:
         right_ge_id = self.database.find_first_greater_equal(right)
         right_lt_id = right_ge_id - 1
         if left_ge_id == right_lt_id:
-            result['hit'] = self.database.gene_segments[left_ge_id].gene
+            result['hit'] = '%s(%d-%d)' % (self.database.gene_segments[left_ge_id].gene,
+                                           self.database.gene_segments[left_ge_id].left,
+                                           self.database.gene_segments[left_ge_id].right)
             result['sequence']['hit'] = self.database.get_sequence(left_ge_id)
         elif left_ge_id < right_lt_id:
-            for idx in range(left_ge_id, right_lt_id + 1):
-                result['related'].append(self.database.gene_segments[idx].gene)
-                result['sequence']['related'].append(self.database.get_sequence(idx))
+
+            covered_gene_idx = self.find_gene_cover_range(range(left_ge_id, right_lt_id + 1),
+                                                          left,
+                                                          right)
+            if covered_gene_idx:
+                result['hit'] = '%s(%d-%d)' % (self.database.gene_segments[covered_gene_idx].gene,
+                                               self.database.gene_segments[covered_gene_idx].left,
+                                               self.database.gene_segments[covered_gene_idx].right)
+                result['sequence']['hit'] = self.database.get_sequence(covered_gene_idx)
+            else:
+                for idx in range(left_ge_id, right_lt_id + 1):
+                    result['related'].append('%s(%d-%d)' % (self.database.gene_segments[idx].gene,
+                                                            self.database.gene_segments[idx].left,
+                                                            self.database.gene_segments[idx].right))
+                    result['sequence']['related'].append(self.database.get_sequence(idx))
         else:
             if left_ge_id - 1 != right_lt_id:
                 raise ValueError('left_ge_id-1!=right_lt_id')
-            for idx in [right_lt_id, left_ge_id]:
-                result['related'].append(self.database.gene_segments[idx].gene)
-                result['sequence']['related'].append(self.database.get_sequence(idx))
+            covered_gene_idx = self.find_gene_cover_range([right_lt_id, left_ge_id],
+                                                          left,
+                                                          right)
+            if covered_gene_idx:
+                result['hit'] = '%s(%d-%d)' % (self.database.gene_segments[covered_gene_idx].gene,
+                                               self.database.gene_segments[covered_gene_idx].left,
+                                               self.database.gene_segments[covered_gene_idx].right)
+                result['sequence']['hit'] = self.database.get_sequence(covered_gene_idx)
+            else:
+                for idx in [right_lt_id, left_ge_id]:
+                    result['related'].append('%s(%d-%d)' % (self.database.gene_segments[idx].gene,
+                                                            self.database.gene_segments[idx].left,
+                                                            self.database.gene_segments[idx].right))
+                    result['sequence']['related'].append(self.database.get_sequence(idx))
         if direction == '-':
             self.change_to_opposite(result['sequence'])
         self.drop_empty_result(result)
         return result
+
+    def find_gene_cover_range(self, idx_range, left, right):
+        for idx in idx_range:
+            gene_segment = self.database.gene_segments[idx]
+            if gene_segment.left <= left and gene_segment.right >= right:
+                return idx
+        return None
 
     def drop_empty_result(self, result):
         if isinstance(result, dict):
