@@ -15,7 +15,7 @@ from analysis.gene_location_analysis import GeneLocationAnalysis
 from analysis.similarities.pattern_similarity import MatchPattern
 from analysis.similarities.similarity_factory import SimilarityFactory
 from utils.factories.logger_factory import LoggerFactory
-from utils.gene_file_util import GeneFileReader
+from utils.ncbi_database import NCBIDatabase
 from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 from collections import deque
@@ -55,14 +55,13 @@ class GeneSimilarityMatch:
         file_prefix = StrConverter.extract_file_name(file_name)
         self.result_path = os.path.join(self.output_directory,
                                         '%s_match_result.txt' % file_prefix)
-        self.gene_reader = GeneFileReader(self.data_path)
+        self.gene_reader = NCBIDatabase(self.data_path)
         self.logger = LoggerFactory()
         self.weighted_sum = sum([v for k, v in self.weighted.items()])
         assert self.weighted_sum > 0
         self.initialize()
 
     def initialize(self):
-        self.gene_reader.build_information()
         self.dna_code = self.gene_reader.dna_code
         self.rev_dna_code = get_opposite_dna(self.gene_reader.dna_code[::-1])
 

@@ -7,7 +7,7 @@ from analysis.gene_extract import GeneExtract
 from analysis.neighbor_analysis import NeighborAnalysis
 from experiment_config import ExperimentConfig
 from utils.data_download_util import DataDownloadTool
-from utils.gene_file_util import GeneSegment, GeneFileReader
+from utils.ncbi_database import NCBIGeneSegment, NCBIDatabase
 
 
 class TestRNAAnalysis(unittest.TestCase):
@@ -31,7 +31,7 @@ class TestRNAAnalysis(unittest.TestCase):
         neighbor_analysis.run()
 
     def test_gene_segment(self):
-        gene_segment = GeneSegment()
+        gene_segment = NCBIGeneSegment()
         gene_segment.extract_attribute('/product=\"asd')
         self.assertEqual(gene_segment.product, 'asd')
         gene_segment.extract_attribute('/product=\"asdasd\"')
@@ -47,8 +47,7 @@ class TestRNAAnalysis(unittest.TestCase):
 
     def test_gene_data_reader(self):
         input_path = os.path.join(self.download_directory, 'NC_000913.3.txt')
-        gene_data_reader = GeneFileReader(input_path)
-        gene_data_reader.build_information()
+        gene_data_reader = NCBIDatabase(input_path)
         self.assertTrue(len(gene_data_reader.gene_segments) > 0)
         with open(os.path.join(self.data_directory, 'gene_all.txt'), 'w', encoding='utf8') as fw:
             for gene_segment in gene_data_reader.gene_segments:

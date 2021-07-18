@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 import traceback
 
-from utils.gene_file_util import GeneFileReader
+from utils.ncbi_database import NCBIDatabase
 from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 
@@ -20,7 +20,7 @@ class GeneExtract:
         file_name = os.path.basename(self.rna_path)
         file_prefix = StrConverter.extract_file_name(file_name)
         self.result_path = os.path.join(self.output_directory, '%s_extract_result.txt' % file_prefix)
-        self.gene_reader = GeneFileReader(self.data_path)
+        self.gene_reader = NCBIDatabase(self.data_path)
         self.headers = {}
         self.inv_headers = []
 
@@ -30,7 +30,6 @@ class GeneExtract:
             self.inv_headers.append(col_name)
 
     def run(self):
-        self.gene_reader.build_information()
         dna_code = self.gene_reader.dna_code
         with open(self.result_path, 'w', encoding='utf8') as fw:
             if self.gene_extract_based == 'gene':

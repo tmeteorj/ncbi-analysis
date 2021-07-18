@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 
-from utils.gene_file_util import GeneFileReader
+from utils.ncbi_database import NCBIDatabase
 from utils.str_util import StrConverter
 
 
@@ -14,7 +14,7 @@ class GeneRangeExtract:
         file_name = os.path.basename(self.data_path)
         file_prefix = StrConverter.extract_file_name(file_name)
         self.result_path = os.path.join(self.output_directory, '%s_range_result.txt' % file_prefix)
-        self.gene_reader = GeneFileReader(self.data_path)
+        self.gene_reader = NCBIDatabase(self.data_path)
 
     def generate_header(self, items):
         for idx, col_name in enumerate(items.strip().split('\t')):
@@ -22,7 +22,6 @@ class GeneRangeExtract:
             self.inv_headers.append(col_name)
 
     def run(self):
-        self.gene_reader.build_information()
         with open(self.result_path, 'w', encoding='utf8') as fw:
             last_end = 0
             region_idx = 0

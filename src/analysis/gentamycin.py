@@ -3,8 +3,9 @@ import re
 
 import pandas as pd
 from experiment_config import ExperimentConfig
-from utils.coli_database import ColiDatabase
-from utils.gene_file_util import GeneFileReader
+from utils.atcc_database import ATCCDatabase
+from utils.gene_position_helper import GenePositionHelper
+from utils.ncbi_database import NCBIDatabase
 from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 
@@ -12,14 +13,16 @@ from utils.str_util import StrConverter
 class GentamycinAnalysis:
     __header_gene__ = 'Gene'
     __header_sequence__ = 'sequence'
-    __atcc_expand_headers__ = ['left_gene', 'right_gene', 'hit_gene', 'sequence']
+    __atcc_expand_headers__ = ['related', 'hit', 'sequence']
     __ncbi_expand_headers__ = ['sequence']
 
     def __init__(self, ncbi_database_path=None, atcc_database_path=None, output_directory=None):
-        self.atcc_database = ColiDatabase(atcc_database_path) if atcc_database_path else None
-        self.ncbi_database = GeneFileReader(ncbi_database_path) if ncbi_database_path else None
+        self.atcc_database = ATCCDatabase(atcc_database_path) if atcc_database_path else None
+        self.ncbi_database = NCBIDatabase(ncbi_database_path) if ncbi_database_path else None
         if self.ncbi_database:
-            self.ncbi_database.build_information()
+            self.gene_position_helper = GenePositionHelper(self.ncbi_database)
+        else:
+            self.gene_position_helper = GenePositionHelper(self.atcc_database)
         assert self.atcc_database is not None or self.ncbi_database is not None
         self.output_directory = output_directory if output_directory else ExperimentConfig.output_directory
         self.expand_headers = self.__atcc_expand_headers__ if self.atcc_database else self.__ncbi_expand_headers__
@@ -45,14 +48,10 @@ class GentamycinAnalysis:
                 sequences = record[self.__header_sequence__]
                 if not sequences:
                     continue
-                for sequence in sequences.split(','):
-                    target_tag = 'hit'
-                    for tag in ['left', 'right']:
-                        if sequence.startswith(tag):
-                            sequence = sequence[len(tag) + 1:]
-                            target_tag = tag
+                sequence_dict = json.loads(sequences)
+                for tag, sequence in sequence_dict.items():
                     consistency_df.append({
-                        'name': name + '-' + target_tag,
+                        'name': name + '-' + tag,
                         'gene': sequence
                     })
             consistency_df = pd.DataFrame(consistency_df)
@@ -68,28 +67,10 @@ class GentamycinAnalysis:
         if not record[self.__header_gene__].startswith('DR'):
             return tuple(['' for _ in self.expand_headers])
         else:
-            result = {}
+
             left, right, direction = self.get_position(record['Locus'].strip())
-            left_ge_id = self.atcc_database.find_first_greater_equal(left)
-            left_lt_id = left_ge_id - 1
-            right_ge_id = self.atcc_database.find_first_greater_equal(right)
-            right_lt_id = right_ge_id - 1
-            if left_ge_id == right_lt_id:
-                result['hit_gene'] = self.atcc_database.segments[left_ge_id].gene
-                result['sequence'] = self.atcc_database.segments[left_ge_id].sequence
-            elif left_ge_id < right_lt_id:
-                assert left_ge_id + 1 == right_lt_id
-                result['left_gene'] = self.atcc_database.segments[left_ge_id].gene
-                result['right_gene'] = self.atcc_database.segments[right_lt_id].gene
-                result['sequence'] = 'left:' + self.atcc_database.segments[left_ge_id].sequence + \
-                                     ',right：' + self.atcc_database.segments[right_lt_id].sequence
-            else:
-                assert left_ge_id - 1 == right_lt_id
-                result['left_gene'] = self.atcc_database.segments[right_lt_id].gene
-                result['right_gene'] = self.atcc_database.segments[left_ge_id].gene
-                result['sequence'] = 'left:' + self.atcc_database.segments[right_lt_id].sequence + \
-                                     ',right:' + self.atcc_database.segments[left_ge_id].sequence
-            result = tuple([result.get(header, '') for header in self.__atcc_expand_headers__])
+            result = self.gene_position_helper.get_nearby_gene_based_by_range(left, right, direction)
+            result = tuple([result.get(header) for header in self.expand_headers])
             return result
 
     def expand_one_record_from_ncbi(self, record: pd.Series):
@@ -103,7 +84,8 @@ class GentamycinAnalysis:
             sequence = get_opposite_dna(sequence[::-1])
         return sequence,
 
-    def get_position(self, locus):
+    @staticmethod
+    def get_position(locus):
         matched = re.findall(r'(.+):(\d+)-(\d+)\((.)\)', locus)
         assert matched and len(matched) == 1, locus
         matched = matched[0]

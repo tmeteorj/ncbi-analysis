@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 
 from utils.factories.logger_factory import LoggerFactory
-from utils.gene_file_util import GeneFileReader
+from utils.ncbi_database import NCBIDatabase
 from utils.gene_util import get_opposite_dna
 from utils.str_util import StrConverter
 
@@ -22,7 +22,7 @@ class GeneStreamAnalysis:
         file_prefix = StrConverter.extract_file_name(file_name)
         suffix = 'stream_%d' % self.limit if self.mode == 'rna' else 'gene'
         self.result_path = os.path.join(self.output_directory, '%s_%s_result.txt' % (file_prefix, suffix))
-        self.gene_reader = GeneFileReader(self.data_path)
+        self.gene_reader = NCBIDatabase(self.data_path)
         self.logger = LoggerFactory()
         self.headers = {}
         self.inv_headers = []
@@ -94,7 +94,6 @@ class GeneStreamAnalysis:
             self.inv_headers.append(col_name)
 
     def run(self):
-        self.gene_reader.build_information()
         with open(self.result_path, 'w', encoding='utf8') as fw:
             if self.mode == 'rna':
                 lines = open(self.rna_path, 'r', encoding='utf8').readlines()

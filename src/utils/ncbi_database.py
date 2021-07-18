@@ -4,6 +4,7 @@ from enum import Enum
 
 from experiment_config import *
 from utils.factories.logger_factory import LoggerFactory
+from utils.gene_database import GeneSegment, GeneDatabase
 
 
 class GeneDataPartType(Enum):
@@ -20,7 +21,7 @@ class GeneDataLineType(Enum):
     Other = 4
 
 
-class GeneSegment:
+class NCBIGeneSegment(GeneSegment):
     def __init__(self):
         self.xref = {}
         self.cds = None
@@ -55,7 +56,8 @@ class GeneSegment:
             ExperimentConfig.VALUE_UNKNOWN if self.product is None else self.product)
 
 
-class GeneFileReader:
+class NCBIDatabase(GeneDatabase):
+
     def __init__(self, file_path, ignore_gene=False, enable_debug_info=False):
         self.ignore_gene = ignore_gene
         self.gene_segments = []
@@ -66,8 +68,9 @@ class GeneFileReader:
         self.enable_debug_info = enable_debug_info
         self.file_path = file_path
         self.logger = LoggerFactory(1)
+        self.initialized = self.initialize()
 
-    def build_information(self):
+    def initialize(self):
         part_status = GeneDataPartType.HeaderPart
         data = []
         line_type = None
@@ -115,7 +118,7 @@ class GeneFileReader:
     def parse_gene_segment(self, data):
         if data is None or len(data) == 0 or self.ignore_gene:
             return
-        gene_segment = GeneSegment()
+        gene_segment = NCBIGeneSegment()
         last_line = ''
         success = True
         complement = None
@@ -144,7 +147,13 @@ class GeneFileReader:
                 break
         if success:
             self.gene_segments.append(gene_segment)
+            gene_segment.left, gene_segment.right = gene_segment.cds[0], gene_segment.cds[1]
         data.clear()
+
+    def get_sequence(self, segment_id=None, left=None, right=None):
+        if segment_id:
+            left, right = self.gene_segments[segment_id].left, self.gene_segments[segment_id].right
+        return self.dna_code[left - 1:right]
 
     @staticmethod
     def check_line_type(line: str, part_status):
@@ -170,8 +179,7 @@ class GeneFileReader:
 if __name__ == '__main__':
 
     file_path = 'D:/Workspace/ncbi-analysis/data/rna_analysis/rna_download_data/NC_000913.3.txt'
-    gene = GeneFileReader(file_path)
-    gene.build_information()
+    gene = NCBIDatabase(file_path)
     b_dict = {}
     for gene_segment in gene.gene_segments:
         if gene_segment.gene_id:
