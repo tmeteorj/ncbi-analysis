@@ -5,7 +5,7 @@ from experiment_config import ExperimentConfig
 from utils.gene_position_helper import GenePositionHelper
 from utils.ncbi_database import NCBIDatabase
 
-input_file_name = 'find_gene\\input.txt'
+input_file_name = 'find_gene\\input_with_locus.txt'
 data_name = 'NC_000913.3.txt'
 
 if __name__ == '__main__':
